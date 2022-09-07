@@ -20,4 +20,4 @@ It is built on top of the implementation of the Biasse-van Vredendaal algorithm 
 2. Run ```sage trees_generation.sage``` to generate trees.
 3. Run ```sage testrelations.sage``` to compute class group and relation matrices for subfields.
 4. Run ```sage clgp.sage``` to compute discrete logarithm for a random ideal using Algorithm 4 from the paper.
-5. Run ```sage clgp.sage``` to compute discrete logarithm assuming that target ideal factors over factor base. You can add primes dividing norm of the target ideal to ```PRIMES``` variable in ```trees_generation.sage``` to include them to the factor base. This requires recomputation of trees and relation matrices.
+5. Run ```sage clgp_smooth.sage``` to compute discrete logarithm assuming that target ideal factors over factor base. You can add primes dividing norm of the target ideal to ```PRIMES``` variable in ```trees_generation.sage``` to include them to the factor base. This requires recomputation of trees and relation matrices.
