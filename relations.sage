@@ -10,9 +10,9 @@ import copy
 
 STORE_RELATIONS = True
 SHORTENNING_ENABLED = True # use shorten relations for subfields using HNF or LLL, or not.
-SHORTENNING_USE_LLL = True # use LLL to shorten relations for subfields
+SHORTENNING_USE_LLL = False # use LLL to shorten relations for the subfields. Uses HNF if set to False.
 
-COMPUTE_CLGP_FOR_SUBFIELDS = True
+COMPUTE_CLGP_FOR_SUBFIELDS = False
 
 aism = 0
 sigmas = {}

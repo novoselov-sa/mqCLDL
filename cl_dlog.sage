@@ -81,8 +81,6 @@ def strip_ones(a):
     return []
 
 def apply_aut_rec(K, K_gens, f, mu, i):
-    #K_gens = K.gens()
-	#print(K, K_gens)
     n = len(K_gens)
     if i >= n:
         return f # f in QQ
@@ -162,22 +160,26 @@ def cl_dlog_quad(D, I, d_parent=[]):
     for i in range(B.ncols()):
         #if B[i,i] != 1:
         B_t.append(B[i,i])
-    print(f"B_t = {strip_ones(B_t)}")
+    #print(f"B_t = {strip_ones(B_t)}")
 
-    print(f"[begin] cl_dlog_quad(D = {D} = {Mod(D,4)} mod 4, I = {I}, d_parent = {d_parent})")
+    #print(f"[begin] cl_dlog_quad(D = {D} = {Mod(D,4)} mod 4, I = {I}, d_parent = {d_parent})")
+    print(f"Computing DLOG for the ideal I = {I} in group {strip_ones(B_t)} ...")
+
     K = QuadraticField(D, name="a")
     h = K.class_number(proof=False)
-    print(f"-> h_K = {h}")
+    #print(f"-> h_K = {h}")
     if h == 1:
         # This is a trivial case when all ideals lie in the same class.
         # We can take [I] = [P_1^2] = [FB[0]^2] to simplify the subsequent square root computation.
         # e = [2] + [0 for i in range(len(FB)-1)]
         e = [0 for i in range(len(FB))]
-        print(f"-> e = {e} (trivial case)")
-        print(f"[done] cl_dlog_quad(D = {D} = {Mod(D,4)} mod 4, I = {I}, d_parent = {d_parent})\n")
+        e_g = prod_primes_to_gens(e, V, B, strip_zeroes=True)
+        #print(f"-> e = {e} (trivial case)")
+        print(f"[done] Computing DLOG for the ideal I = {I} in group {strip_ones(B_t)} ... {e_g}\n")
         return e
     #print("-> FB:", [[K.ideal(FB[i].prime, K(FB[i].elts)), K.ideal(FB[i].prime, K(FB[i].elts)).is_principal(), K.ideal(FB[i].prime, K(FB[i].elts)).gens()] for i in range(len(FB))] )
-    print("-> FB (primes):", set([FB[i].prime for i in range(len(FB))]))
+    #print("-> FB (primes):", set([FB[i].prime for i in range(len(FB))]))
+    
     # transformation of the input ideal I to the O_K-basis used by SageMath
     if Mod(D, 4) == 1:
         # check that Z-basis of O_K is (1, (sqrt(D)-1)/2))
@@ -201,21 +203,22 @@ def cl_dlog_quad(D, I, d_parent=[]):
     else:
         assert(K.ring_of_integers().ring_generators()[0] == K.gen())
         I2 = K.ideal([I.q, K.gen() - I.s[0]])
-    print("-> I converted, Z[sqrt(D)] => O_K: I2 =", I2.gens())
+    #print("-> I converted, Z[sqrt(D)] => O_K: I2 =", I2.gens())
     #print("--> is_principal [pari]?", pari.bnfisprincipal(K.pari_bnf(), I2))
-    print("--> is_principal [sage]?", I2.is_principal(proof=False))
+    #print("--> is_principal [sage]?", I2.is_principal(proof=False))
 
     if I2.is_principal(proof=False):
-        #e = [2] + [0 for i in range(len(FB)-1)]
         e = [0 for i in range(len(FB))]
-        print(f"-> e = {e} (trivial case 2)")
-        print(f"--> I2.ideal_class_log() = {I2.ideal_class_log()}")
+        e_g = prod_primes_to_gens(e, V, B, strip_zeroes=True)
+        #print(f"-> e = {e} (trivial case 2)")
+        #print(f"--> I2.ideal_class_log() = {I2.ideal_class_log()}")
         #assert set([ZZ(i) for i in I2.ideal_class_log()]) == set([0]), f"{set(I2.ideal_class_log())} != {set([0])}"
+        print(f"[done] Computing DLOG for the ideal I = {I} in group {strip_ones(B_t)} ... {e_g}")
         return e
 
     # simple correctness check, norms should be the same
     N_I2 = I2.absolute_norm()
-    print("--> N(I2) =", N_I2)
+    #print("--> N(I2) =", N_I2)
     assert(N_I2 == I.q)
  
     # We look for a random ideal J s.t. LLL(I*J) factors completely over the factor base.
@@ -225,26 +228,26 @@ def cl_dlog_quad(D, I, d_parent=[]):
         #e1 = [ZZ.random_element(1000) for i in range(len(FB))]
         J = prod(K.ideal(FB[i].prime, K(FB[i].elts))^e1[i] for i in range(len(FB)))
         #print("-> J =", J.gens())
-        print("-> J = (...)")
-        print(f"--> e1 = {e1}")
+        #print("-> J = (...)")
+        #print(f"--> e1 = {e1}")
         assert ZZ(pari.idealnorm(K.pari_nf(), J)) != 1
 
         I3 = I2 * J
         I3_red = pari.idealred(K.pari_nf(), I3.pari_hnf())
         N_I3_red = pari.idealnorm(K.pari_nf(), I3_red)
-        print("-> LLL(I2 * J) =", I3_red)
-        print(f"-> N(LLL(I2 * J)) = {N_I3_red} = {QQ(N_I3_red).factor()}")
+        #print("-> LLL(I2 * J) =", I3_red)
+        #print(f"-> N(LLL(I2 * J)) = {N_I3_red} = {QQ(N_I3_red).factor()}")
         if N_I3_red == 1:
-            print(f"-> trivial reduction, e = e1 = {e1}")
+            #print(f"-> trivial reduction, e = e1 = {e1}")
             e = e1
             break
         smooth = is_smooth(N_I3_red, FB)
         if smooth:
             e2 = factor_over_FB(K, I3_red, FB)
-            print(f"-> smooth case: e = e1 - e2, e2 = {e2}")
+            #print(f"-> smooth case: e = e1 - e2, e2 = {e2}")
             e = [e1[i] - e2[i] for i in range(len(FB))]
             break
-    print(f"-> e = {e}")
+    #print(f"-> e = {e}")
     # verification
     if VERIFY or VERIFY_LIGHT:
         Jt = prod(K.ideal(FB[i].prime, K(FB[i].elts))^e[i] for i in range(len(FB)))
@@ -255,18 +258,16 @@ def cl_dlog_quad(D, I, d_parent=[]):
         #assert IJ.is_principal(proof=False), f"Jt = {Jt.gens()}, I2 * Jt = {IJ.gens()}"
     # reduce vector modulo orders of class generators
     e_g = prod_primes_to_gens(e, V, B)
-    print(f"-> e_g = {e_g}")
-    print(f"--> I2.ideal_class_log() = {I2.ideal_class_log()}")
+    #print(f"-> e_g = {e_g}")
+    #print(f"--> I2.ideal_class_log() = {I2.ideal_class_log()}")
     if set([ZZ(i) for i in I2.ideal_class_log()] + [0]) == set(e_g + [0]):
-        print(f"---> {set(I2.ideal_class_log())} != {set(e_g)} [error possible]") 
-    else:
-        print("---> [ok]")
+        print(f"-> {set(I2.ideal_class_log())} != {set(e_g)} [error possible]") 
 
     # check that we have correct matrices
     assert prod_gens_to_primes(prod_primes_to_gens(e, V, B, reduce=False), V_inv) == e
     e = prod_gens_to_primes(e_g, V_inv)
-    print(f"-> e (reduced) = {e}")
-    print(f"[done] cl_dlog_quad(D = {D} = {Mod(D,4)} mod 4, I = {I}, d_parent = {d_parent})\n")
+    #print(f"-> e (reduced) = {e}")
+    print(f"[done] Computing DLOG for the ideal I = {I} in group {strip_ones(B_t)} ... {prod_primes_to_gens(e, V, B, strip_zeroes=True)}\n")
     return e
 
 def prod_ideal(K, FB, e):
@@ -289,7 +290,7 @@ def load_relations(d):
 # Output: l s.t. (g_i^t)^l = g_i^(ei*t)
 # Note: in order to avoid evaluation of prime ideals products we work with exponents only.
 def dlog_pow_2(ei, t, r, bi):
-    print(f"[begin] dlog_pow_2(ei = {ei}, t = {t}, r = {r}, bi = {bi})")
+    #print(f"[begin] dlog_pow_2(ei = {ei}, t = {t}, r = {r}, bi = {bi})")
     l = 0
     gamma_e = 2^(r-1)*t # gamma = generator^(2^(r-1)) = (g_i^t)^(2^(r-1))
     for k in range(r):
@@ -303,9 +304,9 @@ def dlog_pow_2(ei, t, r, bi):
             d_k = 1
         else:
             raise Exception("DLOG_pow2: Something wrong in assumptions!")
-        print(f"-> dlog_pow_2: k = {k}, d_k = {d_k}, ei = {ei} = {Mod(ei, 2^r)} mod 2^r, {Mod(h_k_e, bi)}, {Mod(gamma_e, bi)}")
+        #print(f"-> dlog_pow_2: k = {k}, d_k = {d_k}, ei = {ei} = {Mod(ei, 2^r)} mod 2^r, {Mod(h_k_e, bi)}, {Mod(gamma_e, bi)}")
         l = l + 2^k * d_k
-    print(f"[done] dlog_pow_2({ei}, {t}, {r}, {bi}) => l = {l}")
+    #print(f"[done] dlog_pow_2({ei}, {t}, {r}, {bi}) => l = {l}")
     return l
 
 def cyc_sqrt(e_i, b_i):
@@ -337,33 +338,16 @@ def cyc_sqrt(e_i, b_i):
 # Computation of square root (in class group) of smooth ideal class J = prod P[i]^e[i] for P[i] in the factor base.
 # Requires precomputed relations (run testrelations.sage with the same 'food').
 def smooth_ideal_sqrt(d, e, d_parent=()):
-    print(f"[begin] smooth_ideal_sqrt(d = {d})")
-    print(f"-> e = {e}")
+    #print(f"[begin] smooth_ideal_sqrt(d = {d})")
+    #print(f"-> e = {e}")
     m = len(e)
-    # check for the simple case of sqrt when all coefficients of e are even
-    #simple = True
-    #for i in range(m):
-    #    if Mod(e[i], 2) != 0:
-    #        simple = False
-    #        break
 
     M = load_relations(d)
     #print("\n\nM:", M)
     B,U,V=M.smith_form()
     Ut = U^-1
     V_inv = V^-1
-    print("-> B:", strip_ones([B[i,i] for i in range(B.ncols())]))
-    #print("\nU:", U)
-    #print("\nV:", V)
-    #print("-> U.is_unit() =", U.is_unit())
-    #print("-> V.is_unit() =", V.is_unit())
-    #print("-> U == V?", U == V)
-    #print("-> U == I?", U == identity_matrix(U.nrows()))
-    #print("-> V == I?", V == identity_matrix(V.nrows()))
-    #print("-> V == V^-1?", V == V^(-1))
-    #print("-> U == U^-1?", U == U^(-1))
-    #print("-> U == V^-1?", U == V^(-1))
-    #print("-> U^-1 == V?", V == U^(-1))
+    #print("-> B:", strip_ones([B[i,i] for i in range(B.ncols())]))
 
     # Verifying correctnes of generators.
     # TODO: Find out why we should take the matrix V^-1 instead U^-1.
@@ -404,7 +388,7 @@ def smooth_ideal_sqrt(d, e, d_parent=()):
     #e_g = [sum(Ut[i,j]*e[i] for i in range(m)) for j in range(B.ncols())]
     #e_g = [sum(int(V[i,j]*e[i]) for i in range(m)) for j in range(B.ncols())]
     e_g = prod_primes_to_gens(e, V, B, reduce=True)
-    print(f"-> Input ideal exponents in terms of Cl_K gens, e_g = {e_g}")
+    #print(f"-> Input ideal exponents in terms of Cl_K gens, e_g = {e_g}")
 
     # check that ideal is written correctly in terms of generators of class group
     if VERIFY_HEAVY:
@@ -472,7 +456,7 @@ def smooth_ideal_sqrt(d, e, d_parent=()):
         principal = True
     else:
         principal = False
-    print(f"-> The input ideal is principal: {principal}")
+    #print(f"-> The input ideal is principal: {principal}")
 
     J_sqrts = []
     for i in range(len(e_g)):
@@ -502,13 +486,13 @@ def smooth_ideal_sqrt(d, e, d_parent=()):
     #print(f"[done] smooth_ideal_sqrt(d = {d})\n")
     #return e_sqrt
 
-    print("-> J_sqrts [gens exp.]: ", J_sqrts)
+    #print("-> J_sqrts [gens exp.]: ", J_sqrts)
 
     # We have sqrt(J) = prod_i g_i^J_sqrt[i]. Now, we convert sqrt(J) to the form prod_j P_j^e[j].
     e_sqrts = []
     for J_sqrt in J_sqrts:
         e_sqrt = prod_gens_to_primes(J_sqrt, V_inv)
-        print(f"-> e_sqrt = {e_sqrt}")
+        #print(f"-> e_sqrt = {e_sqrt}")
         if VERIFY_HEAVY or VERIFY or (VERIFY_LIGHT and len(d) <= 5):
             print("-> Verifying smooth_ideal_sqrt result ...")
             I_v = prod_ideal(K, FB, e)
@@ -519,7 +503,7 @@ def smooth_ideal_sqrt(d, e, d_parent=()):
             #assert IJ.is_principal(proof=False), "Wrong computation of sqrt(I)" # slow even for small degree fields
             print("--> [ok]")
         e_sqrts.append(e_sqrt)
-    print(f"[done] smooth_ideal_sqrt(d = {d})\n")
+    #print(f"[done] smooth_ideal_sqrt(d = {d})\n")
     return e_sqrts
 
 # Lift product of prime ideals prod(FB[i]^e[i] for i in 0..len(FB)) from subfield to the parent field using splitting data from in FB.
@@ -537,131 +521,23 @@ def lift_e(e, FB):
     return e_lift
 
 # returns a vector e s.t. [ I * J ] = [ I * prod_i(P[i]^e[i] ] = [1], where P[i] are primes from factor base.  
-def cl_dlog_old(d, I, d_parent = []):
-    d = tuple(d)
-    print(f"[begin] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})")
-
-    if len(d) == 1:
-        return cl_dlog_quad(d[0], I, d_parent=d_parent) # should return smooth J, s.t. [I*J] = [1]
-    d_s  = d[:-1]
-    d_t = d[:-2] + d[-1:]
-    d_st = d[:-2] + (d[-2]*d[-1],)
-
-    I_s = ideal.ideals(d_s)(I.q, I.s[:-1])
-    I_t = ideal.ideals(d_t)(I.q, I.s[:-2] + I.s[-1:])
-    I_st = ideal.ideals(d_st)(I.q, I.s[:-2] + (I.s[-2]*I.s[-1],))
-
-    e_s = cl_dlog(d_s, I_s, d_parent=d)
-    e_t = cl_dlog(d_t, I_t, d_parent=d)
-    e_st = cl_dlog(d_st, I_st, d_parent=d)
-
-    print("-> e_s:", e_s)
-    print("-> e_t:", e_t)
-    print("-> e_st:", e_st, "\n")
-
-    # loading precomputed ramification trees with factor base
-    file = relations.convert_letters(d, seed=1, food=food)
-    FB_s = fb.load_primes(tuple(d_s), file, food=food)
-    FB_t = fb.load_primes(tuple(d_t), file, food=food)
-    FB_st = fb.load_primes(tuple(d_st), file, food=food)
-
-    #print("len(FB_s) =", len(FB_s))
-    #print("len(FB_t) =", len(FB_t))
-    #print("len(FB_st) =", len(FB_st))
-
-    e_s_lift = lift_e(e_s, FB_s)
-
-    e_t_lift = lift_e(e_t, FB_t)
-
-    #print(f"FB_st = {FB_st}")
-
-    # debug{
-    K_st = NumberField([x^2 - d_st[i] for i in range(len(d_st))], names=list(sorted(food.keys()))[:len(d_st)])
-    FB_st_sage = [K_st.ideal(FB_st[i].prime, K_st(FB_st[i].elts)) for i in range(len(FB_st))]
-    FB_st_conj = [K_st.ideal(FB_st[i].prime, apply_aut(K_st, K_st(FB_st[i].elts), [0]*(len(d_st)-1) + [1])) for i in range(len(FB_st))]
-    e_st_2 = []
-    for i in range(len(e_st)):
-        j = FB_st_sage.index(FB_st_conj[i])
-        ei_conj = e_st[j]
-        #print(f"i = {i} => j = {j}| {FB_st[i].prime}, {FB_st[i].elts} => {FB_st[j].prime}, {FB_st[j].elts}")
-        #assert i != j or K_st(FB_st[i].elts).is_rational()
-        e_st_2.append(ei_conj)
-    e_st = e_st_2
-    print(f"e_st.conj = {e_st}")
-    #}
-
-    # We assume that the automorphism sigma is already applied to the prime ideals in trees for the subfield field K_st.
-    e_st_lift = lift_e(e_st, FB_st)
-
-    print(f"-> e_s_lift {d_s} => {d}: {e_s_lift}")
-    print(f"-> e_t_lift {d_t} => {d}: {e_t_lift}")
-    print(f"-> e_st_lift {d_st} => {d}: {e_st_lift}")
-    
-    assert(len(e_s_lift) == len(e_t_lift))
-    assert(len(e_t_lift) == len(e_st_lift))
-
-    e = [e_s_lift[i] + e_t_lift[i] - e_st_lift[i] for i in range(len(e_s_lift))]
-    print(f"-> e = {e} \n")
-
-    e_sqrt = smooth_ideal_sqrt(d, e, d_parent=d_parent)
-    print(f"-> result[primes] = {e_sqrt}")
-
-    M = load_relations(d)
-    # #print("\n\nM:", M)
-    B,U,V=M.smith_form()
-    e_sqrt_g = prod_primes_to_gens(e_sqrt, V, B)
-    print(f"-> result[cl_gens] = {e_sqrt_g}")
-    print(f"--> d = {d}")
-    print(f"--> B = {[B[i,i] for i in range(B.ncols())]}")
-
-    # # check using Sage
-    # K = NumberField([x^2 - d[i] for i in range(len(d))], names=list(sorted(food.keys()))[:len(d)])
-    # Cl_K = K.class_group(proof=False)
-    # I_sage = bbp_ideal_to_sage(d, I, K)
-
-    # print("-> checking norm equation ...")
-    # file = relations.convert_letters(d_parent, seed=1, food=food)
-    # FB = fb.load_primes(tuple(d), file, food=food)
-    # J = prod_ideal(K, FB, e)
-    # I2J = I_sage^2 * J
-    # print(f"--> I_sage.is_principal() = {I_sage.is_principal()}")
-    # print(f"--> (I_sage^2).is_principal() = {(I_sage^2).is_principal()}")
-    # print(f"--> J.is_principal() = {J.is_principal()}")
-    # assert I2J.is_principal()
-    # if (I_sage^2).is_principal() and J.is_principal():
-    #     print("--> Warning: ideals are principal, check is useless")
-    # print("--> [ok]")
-
-    # print(f"-> comparing result with Sage output")
-    # dlog_sage = I_sage.ideal_class_log()
-    # print(f"--> I.ideal_class_log() = {dlog_sage}")
-    # assert set([ZZ(i) for i in dlog_sage] + [ZZ(0)]) == set(e_sqrt_g + [0]), f"field = {d}, {set(dlog_sage)} != {set(e_sqrt_g)}"
-    # print("---> [ok]")
-
-    # print("-> checking result, [I]==[J^-1] ...")
-    # J_sqrt = prod_ideal(K, FB, e_sqrt)
-    # assert Cl_K(I_sage) == Cl_K(J_sqrt^-1)
-    # print("--> [ok]")
-
-    print(f"[done] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})\n")
-    return e_sqrt
-
-# returns a vector e s.t. [ I * J ] = [ I * prod_i(P[i]^e[i] ] = [1], where P[i] are primes from factor base.  
 def cl_dlog(d, I, d_parent = []):
     d = tuple(d)
-    print(f"[begin] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})")
-
     if len(d) == 1:
         return [cl_dlog_quad(d[0], I, d_parent=d_parent)] # should return smooth J, s.t. [I*J] = [1]
 
     M = load_relations(d)
     B,U,V = M.smith_form()
     B_t = [ZZ(B[i,i]) for i in range(B.ncols())]
-    print(f"B_t = {strip_ones(B_t)}")
+    print(f"Computing DLOG for ideal I = {I} in the group {strip_ones(B_t)} ... ")
+
+    #print(f"B_t = {strip_ones(B_t)}")
     if set(B_t) == {1}:
         res = [[0]*M.ncols()]
-        print(f"h_K = 1, computation of dlog is trivial, result = {res}")
-        print(f"[done] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})\n")
+        e_g = prod_primes_to_gens(res, V, B, strip_zeroes=True)
+        #print(f"h_K = 1, computation of dlog is trivial, result = {res}")
+        #print(f"[done] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})\n")
+        print(f"[done] Computing DLOG for ideal I = {I} in the group {strip_ones(B_t)} ... {e_g}\n")
         return res
 
     d_s  = d[:-1]
@@ -682,16 +558,15 @@ def cl_dlog(d, I, d_parent = []):
     dlog_t  = cl_dlog(d_t, I_t, d_parent=d)
     dlog_st = cl_dlog(d_st, I_st, d_parent=d)
 
-    print(f"d_s = {d_s}, dlog_s = {dlog_s}")
-    print(f"d_t = {d_t}, dlog_t = {dlog_t}")
-    print(f"d_st = {d_st}, dlog_st = {dlog_st}")
+    #print(f"d_s = {d_s}, dlog_s = {dlog_s}")
+    #print(f"d_t = {d_t}, dlog_t = {dlog_t}")
+    #print(f"d_st = {d_st}, dlog_st = {dlog_st}")
 
-    print(f"[DEBUG] {len(dlog_s)*len(dlog_t)*len(dlog_st)} triples to enumerate")
-    # debug{
+    print(f"{len(dlog_s)*len(dlog_t)*len(dlog_st)} triples to enumerate")
+    
     K_st = NumberField([x^2 - d_st[i] for i in range(len(d_st))], names=list(sorted(food.keys()))[:len(d_st)])
     FB_st_sage = [K_st.ideal(FB_st[i].prime, K_st(FB_st[i].elts)) for i in range(len(FB_st))]
     FB_st_conj = [K_st.ideal(FB_st[i].prime, apply_aut(K_st, K_st(FB_st[i].elts), [0]*(len(d_st)-1) + [1])) for i in range(len(FB_st))]
-    #}
 
     # checks using Sage
     if d_parent == []:
@@ -700,22 +575,22 @@ def cl_dlog(d, I, d_parent = []):
         file = relations.convert_letters(d_parent, seed=1, food=food)
     FB = fb.load_primes(tuple(d), file, food=food)
     K = NumberField([x^2 - d[i] for i in range(len(d))], names=list(sorted(food.keys()))[:len(d)])
-    print(f"-> class group computation for checks using Sage, d = {d} ...")
-    Cl_K = K.class_group(proof=False)
-    print(f"--> {Cl_K}")
+    #print(f"-> class group computation for checks using Sage, d = {d} ...")
+    #Cl_K = K.class_group(proof=False)
+    #print(f"--> {Cl_K}")
     I_sage = bbp_ideal_to_sage(d, I, K)
-    print(f"-> Computing dlog with Sage for checks ...")
-    dlog_sage = I_sage.ideal_class_log()
-    print(f"--> I.ideal_class_log() = {dlog_sage}")
+    #print(f"-> Computing dlog with Sage for checks ...")
+    #dlog_sage = I_sage.ideal_class_log()
+    #print(f"--> I.ideal_class_log() = {dlog_sage}")
 
     res = []
 
     for e_s in dlog_s:
         for e_t in dlog_t:
             for e_st in dlog_st:
-                print("-> e_s:", e_s)
-                print("-> e_t:", e_t)
-                print("-> e_st:", e_st, "\n")
+                #print("-> e_s:", e_s)
+                #print("-> e_t:", e_t)
+                #print("-> e_st:", e_st, "\n")
 
                 e_s_lift = lift_e(e_s, FB_s)
                 e_t_lift = lift_e(e_t, FB_t)
@@ -728,75 +603,65 @@ def cl_dlog(d, I, d_parent = []):
                     #assert i != j or K_st(FB_st[i].elts).is_rational()
                     e_st_2.append(ei_conj)
                 e_st = e_st_2
-                print(f"-> e_st.conj = {e_st}")
-                #}
+                #print(f"-> e_st.conj = {e_st}")
 
                 # We assume that the automorphism sigma is already applied to the prime ideals in trees for the subfield field K_st.
                 e_st_lift = lift_e(e_st, FB_st)
 
-                print(f"-> e_s_lift {d_s} => {d}: {e_s_lift}")
-                print(f"-> e_t_lift {d_t} => {d}: {e_t_lift}")
-                print(f"-> e_st_lift {d_st} => {d}: {e_st_lift}")
+                #print(f"-> e_s_lift {d_s} => {d}: {e_s_lift}")
+                #print(f"-> e_t_lift {d_t} => {d}: {e_t_lift}")
+                #print(f"-> e_st_lift {d_st} => {d}: {e_st_lift}")
                 
                 assert(len(e_s_lift) == len(e_t_lift))
                 assert(len(e_t_lift) == len(e_st_lift))
 
                 e = [e_s_lift[i] + e_t_lift[i] - e_st_lift[i] for i in range(len(e_s_lift))]
-                print(f"-> e = {e} \n")
-
-                # print("-> checking norm equation ...")
-                # file = relations.convert_letters(d_parent, seed=1, food=food)
-                # FB = fb.load_primes(tuple(d), file, food=food)
-                # J = prod_ideal(K, FB, e)
-                # I2J = I_sage^2 * J
-                # print(f"--> I_sage.is_principal() = {I_sage.is_principal()}")
-                # print(f"--> (I_sage^2).is_principal() = {(I_sage^2).is_principal()}")
-                # print(f"--> J.is_principal() = {J.is_principal()}")
-                # assert I2J.is_principal()
-                # if (I_sage^2).is_principal() and J.is_principal():
-                #     print("--> Warning: ideals are principal, check is useless")
-                # print("--> [ok]")
+                #print(f"-> e = {e} \n")
 
                 e_sqrts = smooth_ideal_sqrt(d, e, d_parent=d_parent)
                 if e_sqrts == None:
-                    print("--> Sqrt doesn't exists, skipping this branch.")
+                    #print("--> sqrt doesn't exists, skipping this branch.")
                     continue
 
-                print("-> results")
-                print(f"--> d = {d}")
-                print(f"--> B = {strip_ones(B_t)}")
+                #print("-> results")
+                #print(f"--> d = {d}")
+                #print(f"--> B = {strip_ones(B_t)}")
                 check_sage = False
                 for i in range(len(e_sqrts)):
                     e_sqrt = e_sqrts[i]
-                    print(f"--> result {i} [primes] = {e_sqrt}")
+                    #print(f"--> result {i} [primes] = {e_sqrt}")
                     e_sqrt_g = prod_primes_to_gens(e_sqrt, V, B)
-                    print(f"--> result {i} [cl_gens] = {e_sqrt_g}")
+                    #print(f"--> result {i} [cl_gens] = {e_sqrt_g}")
 
-                    print("---> trying to find correct DLOG with LLL ...")
+                    #print("---> trying to find correct DLOG with LLL ...")
                     II = I_sage * prod_ideal(K, FB, e_sqrt)
                     II_red = pari.idealred(K.pari_nf(), II.pari_hnf())
                     N_II_red = pari.idealnorm(K.pari_nf(), II_red)
-                    print("----> LLL(I*sqrt(J)) =", II_red)
-                    print(f"----> N(LLL(I*sqrt(J))) = {N_II_red} = {QQ(N_II_red).factor()}")
+                    #print("----> LLL(I*sqrt(J)) =", II_red)
+                    #print(f"----> N(LLL(I*sqrt(J))) = {N_II_red} = {QQ(N_II_red).factor()}")
                     if N_II_red == 1:
-                        print(f"----> correct dlog found [trivial case]!")
+                        #print(f"----> correct dlog found [trivial case]!")
                         return [e_sqrt]
                     else:
                         smooth = is_smooth(N_II_red, FB)
                         if smooth:
                             II_red_e = factor_over_FB(K, II_red, FB)
                             e_sqrt_correct = [ZZ(e_sqrt[i] - II_red_e[i]) for i in range(len(e_sqrt))]
-                            print(f"----> found correct dlog [smooth case]: {e_sqrt_correct}!")
-                            print(f"-----> (in terms of gens): {prod_primes_to_gens(e_sqrt_correct, V, B)}")
+                            #print(f"----> found correct dlog [smooth case]: {e_sqrt_correct}!")
+                            #print(f"-----> (in terms of gens): {prod_primes_to_gens(e_sqrt_correct, V, B)}")
+                            e_g = prod_primes_to_gens(e_sqrt_correct, V, B, strip_zeroes=True)
+                            print(f"[done] Computing DLOG for ideal I = {I} in the group {strip_ones(B_t)} ... {e_g}\n")
                             return [e_sqrt_correct]
                     
                     # checking using Sage, we need implementation of BB+ algortihm for HNF representation of ideals for efficient calculation
                     if II.is_principal(proof=False):
-                        print(f"----> correct dlog found with sage!")
+                        #print(f"----> correct dlog found with sage!")
+                        e_g = prod_primes_to_gens(e_sqrt, V, B, strip_zeroes=True)
+                        print(f"[done] Computing DLOG for ideal I = {I} in the group {strip_ones(B_t)} ... {e_g}\n")
                         return [e_sqrt]
 
-                    if set([ZZ(i) for i in dlog_sage] + [ZZ(0)]) == set(e_sqrt_g + [0]):
-                        check_sage = True # correct square root belongs to list
+                    #if set([ZZ(i) for i in dlog_sage] + [ZZ(0)]) == set(e_sqrt_g + [0]):
+                    #    check_sage = True # correct square root belongs to list
 
                 # print("-> Check results using sage ...")
                 # assert check_sage, f"dlog check using Sage is failed! Correct variant doesn't belong to the results, field = {d}"
@@ -816,15 +681,19 @@ def cl_dlog(d, I, d_parent = []):
                     #print(f"[DEBUG 42] e_sqrt_ZZ = {e_sqrt_ZZ}")
                     if not (e_sqrt_ZZ in res):
                         res.append(e_sqrt_ZZ)
-    print(f"[done] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})\n")
+    #print(f"[done] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})\n")
+    res_g = [prod_primes_to_gens(r, V, B, strip_zeroes=True) for r in res] 
+    print(f"[done] Computing DLOG for ideal I = {I} in the group {strip_ones(B_t)} ... {res_g}\n")
     return res
 
-#trees_food = trees.get_food()
-#if food != None:
-#    assert food == trees_food, f"Run trees generation and relation computation first! Trees are generated for {trees_food} != {food}."
+trees_food = trees.get_food()
+if food != None:
+    assert food == trees_food, f"Run trees generation and relation computation first! Trees are generated for {trees_food} != {food}."
 
 bound = prod(di.abs() for di in d)
 I = random_ideal(d, bound=bound)
+
+# The ideal can be fixed as in the following examples.
 #I = ideal.ideals([5, 229, 257])(669289,(303651, 6337, 202003))
 #I = ideal.ideals([-7, -11, -19, -23])(2557,(143, 1040, 485, 1051))
 #I = ideal.ideals([5, 13, 17, 29, 37, 41])(9032339,(2001020, 3845142, 269749, 1568238, 3382698, 560462))
@@ -842,7 +711,6 @@ print(f"I_sage.norm = {I_sage.absolute_norm()}")
 assert I_sage.absolute_norm() == I.q
 #print(f"I_sage.ideal_class_log() = {I_sage.ideal_class_log()}")
 
-#print(f"I.generator() = {I.generator()}")
 dls = cl_dlog(d, I)
 
 file = relations.convert_letters(d, seed=1, food=food)
@@ -851,24 +719,25 @@ M = load_relations(d)
 B,U,V=M.smith_form()
 V_inv = V^(-1)
 
-print("final results:")
+print("Final results:")
 for i in range(len(dls)):
     dl = dls[i]
-    print(f"i = {i}")
-    print(f"-> e (primes) = {dl}")
-    print(f"-> e (gens) = {prod_primes_to_gens(dl, V, B, strip_zeroes=True)}")
+    #print(f"i = {i}")
+    #print(f"-> e (primes) = {dl}")
+    print(f"-> i = {i}, {prod_primes_to_gens(dl, V, B, strip_zeroes=True)}")
 
 # check correctness using Sage (slow):
+print("\nChecks using Sage:")
 for i in range(len(dls)):
     dl = dls[i]
-    print(f"i = {i}")
+    #print(f"i = {i}")
     e_g = prod_primes_to_gens(dl, V, B, strip_zeroes=True)
-    print(f"checking e_g = {e_g} ...")
+    print(f"i = {i}, checking e_g = {e_g} ...")
     J = prod_ideal(K, FB, dl)
     CL_K = K.class_group(proof=False)
     if CL_K(I_sage) != CL_K(J^(-1)):
-        print("--> wrong result")
+        print("-> wrong result")
     else:
-        print("--> ok")
+        print("-> ok")
     #I3 = prod([CL_K.gens()[i]^cl_sage[i] for i in range(len(CL_K.gens()))])
     #assert CL_K(I_sage) == CL_K(I3)
