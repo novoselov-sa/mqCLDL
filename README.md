@@ -1,6 +1,6 @@
 This is a source code for the paper "On the discrete logarithm problem in the ideal class group of multiquadratic fields".
 
-It is built on top of the implementation of the Biasse-van Vredendaal algorithm for the class group computation of real multiquadratic fields:
+It is built on top of the implementation of the Biasse-van Vredendaal algorithm for the class group computation for real multiquadratic fields:
 * https://scarecryptow.org/publications/multiclass.html
 
 # Requirements
