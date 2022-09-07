@@ -1,0 +1,13 @@
+trees/
+*.so
+*.save
+*.c
+*.pyx
+*.pyc
+*.sage.py
+*_sage.py
+!hadamard.pyx
+*.sublime-project
+*.sublime-workspace
+*_relations
+__pycache__
