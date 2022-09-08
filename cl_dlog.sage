@@ -260,8 +260,10 @@ def cl_dlog_quad(D, I, d_parent=[]):
     e_g = prod_primes_to_gens(e, V, B)
     #print(f"-> e_g = {e_g}")
     #print(f"--> I2.ideal_class_log() = {I2.ideal_class_log()}")
-    if set([ZZ(i) for i in I2.ideal_class_log()] + [0]) == set(e_g + [0]):
-        print(f"-> {set(I2.ideal_class_log())} != {set(e_g)} [error possible]") 
+    
+    
+    #if set([ZZ(i) for i in I2.ideal_class_log()] + [0]) == set(e_g + [0]):
+    #    print(f"-> {set(I2.ideal_class_log())} != {set(e_g)} [error possible]") 
 
     # check that we have correct matrices
     assert prod_gens_to_primes(prod_primes_to_gens(e, V, B, reduce=False), V_inv) == e

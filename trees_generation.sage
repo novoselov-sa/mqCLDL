@@ -102,7 +102,7 @@ if COMPUTE_GM_NBOUND_QUAD:
     print("GM bound (quadr.subf.) =", GM_bound_quad)
 
 # comment out the following line if you want to use Bach bound
-norm_bound = GM_bound_quad + 130
+norm_bound = GM_bound_quad + 100
 # norm_bound = GM_bound # bound computed using algorithm of Grenié-Molteni
 
 print("Used bound =", norm_bound)
