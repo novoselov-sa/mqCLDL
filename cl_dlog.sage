@@ -4,7 +4,7 @@ import fb
 import trees
 
 #food = {'a': 17, 'b': 29, 'c': 37, 'd': 41}
-food = {'a':7, 'b': 11, 'c': 19, 'd': 23}
+#food = {'a':7, 'b': 11, 'c': 19, 'd': 23}
 #food = {'a':7, 'b': 79, 'c': 223, 'd': 229}
 #food = {'a': 1297, 'b': 4759, 'c': 7057, 'd': 8761}
 #food = {'a': 4759, 'b': 8761} # h_4759 = 13, h_8761 = 27
@@ -21,8 +21,8 @@ food = {'a':7, 'b': 11, 'c': 19, 'd': 23}
 #food = {'a': 5, 'b': 79, 'c': 89, 'd': 97, 'e': 101}  #result: C2 x C2 x C2 x C2 x C2 x C2 x C2 x C2 x C4 x C4 x C4 x C24 x C48 x C48 x C96 x C96
 #food = {'a': -7, 'c': -47, 'b': -31} # |Cl_K| = 510
 #food = {'a': 5, 'b': 79, 'c': 89}
-
 #food = {"a": -3, "b": -7, "c": -11, "d": -19}
+
 food = trees.get_food() # load food from trees
 
 d = tuple(sorted(food.values(), key=lambda di: abs(di)))
@@ -162,7 +162,6 @@ def cl_dlog_quad(D, I, d_parent=[]):
         B_t.append(B[i,i])
     #print(f"B_t = {strip_ones(B_t)}")
 
-    #print(f"[begin] cl_dlog_quad(D = {D} = {Mod(D,4)} mod 4, I = {I}, d_parent = {d_parent})")
     print(f"Computing DLOG for the ideal I = {I} in group {strip_ones(B_t)} ...")
 
     K = QuadraticField(D, name="a")
@@ -170,8 +169,6 @@ def cl_dlog_quad(D, I, d_parent=[]):
     #print(f"-> h_K = {h}")
     if h == 1:
         # This is a trivial case when all ideals lie in the same class.
-        # We can take [I] = [P_1^2] = [FB[0]^2] to simplify the subsequent square root computation.
-        # e = [2] + [0 for i in range(len(FB)-1)]
         e = [0 for i in range(len(FB))]
         e_g = prod_primes_to_gens(e, V, B, strip_zeroes=True)
         #print(f"-> e = {e} (trivial case)")
@@ -185,7 +182,6 @@ def cl_dlog_quad(D, I, d_parent=[]):
         # check that Z-basis of O_K is (1, (sqrt(D)-1)/2))
         assert(K.pari_zk()[0] == 1 and K.pari_zk()[1] == K.pari_zk()[1].variable()/2 - 1/2)
         # transform the ideal of Z[sqrt(D)] to the ideal of O_K with respect to Pari/GP basis by putting sqrt(D) = 2*((sqrt(D)-1)/2) + 1 = (1, 2)
-        # TODO: universal transformation
         I2_hnf = matrix([[I.q, 0], [2*I.q, I.q], [-I.s[0]+1, 2], [-I.s[0]+D, -2*I.s[0]]])
         # Sage uses row vectors in HNF, while Pari uses column vectors. So, we need to transpose the matrix.
         I2 = pari.idealhnf(K.pari_nf(), I2_hnf.hermite_form(include_zero_rows=False).transpose())
@@ -277,10 +273,6 @@ def prod_ideal(K, FB, e):
     return prod(K.ideal(FB[i].prime, K(FB[i].elts))^int(e[i]) for i in range(len(FB)))
 
 def load_relations(d):
-    #fn = "relations/" + "_".join([str(di) for di in sorted(d)]) + "_relations"
-    #with open(fn, "r") as f:
-    #    data = f.read()
-    #    return matrix(eval(data))
     return relations.load_matrix(d)
 
 # Solving the discrete logarithm problem for an element in cyclic group of 2-power order.
@@ -470,27 +462,6 @@ def smooth_ideal_sqrt(d, e, d_parent=()):
         else:
             J_sqrts = [J_sqrts[i] + [egi_sqrt[j]] for i in range(len(J_sqrts)) for j in range(len(egi_sqrt))]
 
-    #print("-> J_sqrt [gens exp.]: ", J_sqrt)
-    # We have sqrt(J) = prod_i g_i^J_sqrt[i]. Now, we convert sqrt(J) to the form prod_j P_j^e[j].
-    #e_sqrt = [sum(U[i,j]*J_sqrt[i] for i in range(len(J_sqrt))) for j in range(m)]
-    #e_sqrt = [sum(int(V_inv[i,j]*J_sqrt[i]) for i in range(len(J_sqrt))) for j in range(m)]
-    #e_sqrt = prod_gens_to_primes(J_sqrt, V_inv)
-    #print(f"-> e_sqrt = {e_sqrt}")
-    # if VERIFY_HEAVY or VERIFY or (VERIFY_LIGHT and len(d) <= 5):
-    #     print("-> Verifying smooth_ideal_sqrt result ...")
-    #     I_v = prod_ideal(K, FB, e)
-    #     J_sqrt_v = prod_ideal(K, FB, e_sqrt)
-    #     IJ = prod_ideal(K, FB, [e[i] - 2*e_sqrt[i] for i in range(len(e))])
-    #     assert Cl_K(I_v) == Cl_K(J_sqrt_v)^2, "Wrong computation of sqrt(I)"
-    #     assert Cl_K(IJ) == Cl_K.identity(), "Wrong computation of sqrt(I)"
-    #     #assert IJ.is_principal(proof=False), "Wrong computation of sqrt(I)" # slow even for small degree fields
-    #     print("--> [ok]")
-    #print(f"[done] smooth_ideal_sqrt(d = {d})\n")
-    #return e_sqrt
-
-    #print("-> J_sqrts [gens exp.]: ", J_sqrts)
-
-    # We have sqrt(J) = prod_i g_i^J_sqrt[i]. Now, we convert sqrt(J) to the form prod_j P_j^e[j].
     e_sqrts = []
     for J_sqrt in J_sqrts:
         e_sqrt = prod_gens_to_primes(J_sqrt, V_inv)
