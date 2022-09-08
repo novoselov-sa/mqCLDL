@@ -2,6 +2,7 @@ import nprofile
 import trees
 import prime_decomp
 import polynomial_ring
+import sys
 
 # Note: don't use labels d,e,f simultaniously. 
 # food = {'a': 5, 'b': 79, 'c': 89} # |Cl_K| = 96 (Sage)
@@ -51,6 +52,15 @@ food = {'a': -7, 'b': -23, 'c': -31} # |Cl_K| = 207
 #food = {'a': -7, 'b': -11, 'c': -19}
 #food = {'a': -7, 'b': -11, 'c': -19, 'd': -23}
 #food = {"a": -3, "b": -7, "c": -11, "d": -19, "e": -23, "g": -31}
+
+if len(sys.argv) > 1:
+    l = "abcdeghijklmnopqrstuvwxyz"
+    d = [ZZ(di) for di in sys.argv[1:]]
+    d = tuple(sorted(d, key=lambda di: abs(di)))
+    food = {}
+    for i in range(len(d)):
+        food[l[i]] = d[i]
+#print(f"food = {food}")
 
 # Additional primes to factor base. For DLOG computation add here primes from the factorization of norm of target ideal.
 PRIMES = []
