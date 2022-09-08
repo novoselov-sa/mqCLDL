@@ -1,4 +1,3 @@
-trees/
 *.so
 *.save
 *.c
@@ -7,7 +6,11 @@ trees/
 *.sage.py
 *_sage.py
 !hadamard.pyx
+!centermod.pyx
 *.sublime-project
 *.sublime-workspace
 *_relations
+*.christine
+trees/food.txt
 __pycache__
+
