@@ -534,7 +534,7 @@ def cl_dlog(d, I, d_parent = []):
     #print(f"B_t = {strip_ones(B_t)}")
     if set(B_t) == {1}:
         res = [[0]*M.ncols()]
-        e_g = prod_primes_to_gens(res, V, B, strip_zeroes=True)
+        e_g = prod_primes_to_gens(res[0], V, B, strip_zeroes=True)
         #print(f"h_K = 1, computation of dlog is trivial, result = {res}")
         #print(f"[done] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})\n")
         print(f"[done] Computing DLOG for ideal I = {I} in the group {strip_ones(B_t)} ... {e_g}\n")
