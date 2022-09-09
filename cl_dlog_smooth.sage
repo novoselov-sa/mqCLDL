@@ -203,12 +203,19 @@ assert flag
 
 print(f"CL_K: {[B[i,i] for i in range(B.nrows())]}")
 
+w = walltime()
 #print(f"FB = {FB}")
 e = factor_over_FB(K, I_sage, FB)
 print(f"e = {e}")
 
 e_g = prod_primes_to_gens(e, V, B)
-print(f"cl_dlog: {e_g}")
+print(f"cl_dlog: {e_g}, time: {walltime(w)}", flush=True)
+
+print("Checking using Sage ...") # Unreachable for n >= 6
+if len(d) >= 6:
+    print("-> DISABLED")
+    exit(0)
+
 w = walltime()
 cl_sage = I_sage.ideal_class_log(proof=False)
 cl_sage = [ZZ(i) for i in cl_sage]

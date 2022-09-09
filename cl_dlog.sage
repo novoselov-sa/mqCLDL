@@ -599,7 +599,7 @@ def cl_dlog(d, I, d_parent = []):
                 #print("-> results")
                 #print(f"--> d = {d}")
                 #print(f"--> B = {strip_ones(B_t)}")
-                check_sage = False
+                #check_sage = False
                 for i in range(len(e_sqrts)):
                     e_sqrt = e_sqrts[i]
                     #print(f"--> result {i} [primes] = {e_sqrt}")
@@ -651,7 +651,6 @@ def cl_dlog(d, I, d_parent = []):
                 # print("--> [ok]")
                 for e_sqrt in e_sqrts:
                     e_sqrt_ZZ = [ZZ(e_sqrt[i]) for i in range(len(e_sqrt))]
-                    #print(f"[DEBUG 42] e_sqrt_ZZ = {e_sqrt_ZZ}")
                     if not (e_sqrt_ZZ in res):
                         res.append(e_sqrt_ZZ)
     #print(f"[done] cl_dlog(d = {d}, I = {I}, d_parent = {d_parent})\n")
