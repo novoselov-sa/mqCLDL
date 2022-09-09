@@ -21,3 +21,6 @@ It is built on top of the implementation of the Biasse-van Vredendaal algorithm 
 3. Run ```sage testrelations.sage``` to compute class group and relation matrices for subfields.
 4. Run ```sage cl_dlog.sage``` to compute discrete logarithm for a random ideal using Algorithm 4 from the paper.
 5. Run ```sage cl_dlog_smooth.sage``` to compute discrete logarithm assuming that target ideal factors over factor base. You can add primes dividing norm of the target ideal to ```PRIMES``` variable in ```trees_generation.sage``` to include them to the factor base. This requires recomputation of trees and relation matrices.
+
+# Versions
+* [mqCLDL-v1.0.0.zip](releases/mqCLDL-v1.0.0.zip)
