@@ -13,4 +13,4 @@
 *.christine
 trees/food.txt
 __pycache__
-
+*.log
