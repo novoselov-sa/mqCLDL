@@ -71,7 +71,13 @@ relations.so \
 fb.so \
 polynomial_ring.so \
 prime_decomp.so \
-trees.so
+trees.so \
+cryptosystem.so \
+verify.so \
+clgp.so \
+smooth_ideal_sqrt_cyc.so \
+dlog_quad.so \
+field_compact.so \
 
 goodprimecheat.so: goodprimecheat.c
 	$(CC) -o goodprimecheat.so goodprimecheat.c
@@ -226,6 +232,9 @@ units.c: units.pyx
 units.pyx: units.sage.py
 	cp units.sage.py units.pyx
 
+units.sage.py: units.sage
+	$(SAGE) -preparse units.sage
+
 ideal.so: ideal.c
 	$(CC) -o ideal.so ideal.c
 
@@ -238,8 +247,17 @@ ideal.pyx: ideal.sage.py
 ideal.sage.py: ideal.sage
 	$(SAGE) -preparse ideal.sage
 
-units.sage.py: units.sage
-	$(SAGE) -preparse units.sage
+cryptosystem.so: cryptosystem.c
+	$(CC) -o cryptosystem.so cryptosystem.c
+
+cryptosystem.c: cryptosystem.pyx
+	$(CYTHON) cryptosystem.pyx
+
+cryptosystem.pyx: cryptosystem.sage.py
+	cp cryptosystem.sage.py cryptosystem.pyx
+
+cryptosystem.sage.py: cryptosystem.sage
+	$(SAGE) -preparse cryptosystem.sage
 
 relations.so: relations.c
 	$(CC) -o relations.so relations.c
@@ -293,7 +311,7 @@ trees.so: trees.c
 	$(CC) -o trees.so trees.c
 
 trees.c: trees.pyx
-	$(CYTHON) trees.pyx
+	$(CYTHON) -3 trees.pyx
 
 trees.pyx: trees.sage.py
 	cp trees.sage.py trees.pyx
@@ -301,32 +319,97 @@ trees.pyx: trees.sage.py
 trees.sage.py: trees.sage
 	$(SAGE) -preparse trees.sage
 
+clgp.so: clgp.c
+	$(CC) -o clgp.so clgp.c
+
+clgp.c: clgp.pyx
+	$(CYTHON) -3 clgp.pyx
+
+clgp.pyx: clgp.sage.py
+	cp clgp.sage.py clgp.pyx
+
+clgp.sage.py: clgp.sage
+	$(SAGE) -preparse clgp.sage
+
+verify.so: verify.c
+	$(CC) -o verify.so verify.c
+
+verify.c: verify.pyx
+	$(CYTHON) -3 verify.pyx
+
+verify.pyx: verify.sage.py
+	cp verify.sage.py verify.pyx
+
+verify.sage.py: verify.sage
+	$(SAGE) -preparse verify.sage
+
+smooth_ideal_sqrt_cyc.so: smooth_ideal_sqrt_cyc.c
+	$(CC) -o smooth_ideal_sqrt_cyc.so smooth_ideal_sqrt_cyc.c
+
+smooth_ideal_sqrt_cyc.c: smooth_ideal_sqrt_cyc.pyx
+	$(CYTHON) -3 smooth_ideal_sqrt_cyc.pyx
+
+smooth_ideal_sqrt_cyc.pyx: smooth_ideal_sqrt_cyc.sage.py
+	cp smooth_ideal_sqrt_cyc.sage.py smooth_ideal_sqrt_cyc.pyx
+
+smooth_ideal_sqrt_cyc.sage.py: smooth_ideal_sqrt_cyc.sage
+	$(SAGE) -preparse smooth_ideal_sqrt_cyc.sage
+
+dlog_quad.so: dlog_quad.c
+	$(CC) -o dlog_quad.so dlog_quad.c
+
+dlog_quad.c: dlog_quad.pyx
+	$(CYTHON) -3 dlog_quad.pyx
+
+dlog_quad.pyx: dlog_quad.sage.py
+	cp dlog_quad.sage.py dlog_quad.pyx
+
+dlog_quad.sage.py: dlog_quad.sage
+	$(SAGE) -preparse dlog_quad.sage
+
+field_compact.so: field_compact.c
+	$(CC) -o field_compact.so field_compact.c
+
+field_compact.c: field_compact.pyx
+	$(CYTHON) -3 field_compact.pyx
+
+field_compact.pyx: field_compact.sage.py
+	cp field_compact.sage.py field_compact.pyx
+
+field_compact.sage.py: field_compact.sage
+	$(SAGE) -preparse field_compact.sage
+
 clean:
-	rm -f goodprimecheat.so goodprimecheat.c goodprimecheat.pyx goodprimecheat.sage.py
-	rm -f goodprime.so goodprime.c goodprime.pyx goodprime.sage.py
+	rm -f goodprimecheat.so goodprimecheat.c goodprimecheat.pyx
+	rm -f goodprime.so goodprime.c goodprime.pyx
 	rm -f hadamard.so hadamard.c
 	rm -f centermod.so centermod.c
-	rm -f mult.so mult.c mult.pyx mult.sage.py
-	rm -f norm.so norm.c norm.pyx norm.sage.py
-	rm -f div.so div.c div.pyx div.sage.py
-	rm -f subsetprod.so subsetprod.c subsetprod.pyx subsetprod.sage.py
-	rm -f powerprod.so powerprod.c powerprod.pyx powerprod.sage.py
-	rm -f sqrt.so sqrt.c sqrt.pyx sqrt.sage.py
-	rm -f char.so char.c char.pyx char.sage.py
-	rm -f ring.so ring.c ring.pyx ring.sage.py
-	rm -f field.so field.c field.pyx field.sage.py
-	rm -f units.so units.c units.pyx units.sage.py
-	rm -f relations.so relations.c relations.pyx relations.sage.py
-	rm -f fb.so fb.c fb.pyx fb.sage.py
-	rm -f polynomial_ring.so polynomial_ring.c polynomial_ring.pyx polynomial_ring.sage.py
-	rm -f prime_decomp.so prime_decomp.c prime_decomp.pyx prime_decomp.sage.py
-	rm -f trees.so trees.c trees.pyx trees.sage.py
-	rm -f trees_generation.sage.py testrelations.sage.py
-	rm -f polynomial_ring_test.sage.py prime_decomp_test.sage.py
-	rm -f ideal.so ideal.c ideal.pyx ideal.sage.py
+	rm -f mult.so mult.c mult.pyx
+	rm -f norm.so norm.c norm.pyx
+	rm -f div.so div.c div.pyx
+	rm -f subsetprod.so subsetprod.c subsetprod.pyx
+	rm -f powerprod.so powerprod.c powerprod.pyx
+	rm -f sqrt.so sqrt.c sqrt.pyx
+	rm -f char.so char.c char.pyx
+	rm -f ring.so ring.c ring.pyx
+	rm -f field.so field.c field.pyx
+	rm -f units.so units.c units.pyx
+	rm -f relations.so relations.c relations.pyx
+	rm -f fb.so fb.c fb.pyx
+	rm -f polynomial_ring.so polynomial_ring.c polynomial_ring.pyx
+	rm -f prime_decomp.so prime_decomp.c prime_decomp.pyx
+	rm -f trees.so trees.c trees.pyx
+	rm -f ideal.so ideal.c ideal.pyx
+	rm -f clgp.so clgp.c clgp.pyx
+	rm -f cryptosystem.so cryptosystem.c cryptosystem.pyx
+	rm -f smooth_ideal_sqrt_cyc.so smooth_ideal_sqrt_cyc.c smooth_ideal_sqrt_cyc.pyx
+	rm -f dlog_quad.so dlog_quad.c dlog_quad.pyx
+	rm -f field_compact.so field_compact.c field_compact.pyx
+	rm -f verify.so verify.c verify.pyx
 	for f in in tests/*test_sage.py; do\
 		rm -f "$$f";\
 	done
+	rm -f *.sage.py
 
 # Running unittests. Unittest discover doesn't support "." in patterns, so we have to rename files first.
 tests: all

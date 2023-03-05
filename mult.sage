@@ -1,4 +1,5 @@
 import nprofile
+#profiling = ['hadamard','invhadamard','transform','transform_multiply','invtransform','mult_mainwork','mult','square']
 import goodprime
 import hadamard as fasthadamard
 import centermod
@@ -21,6 +22,7 @@ def transform_internal(n,N,d,f,low,high):
   f1 = centermod.vector(f,q1)
   return transform_internal(n,N,d,f0,low,mid) + transform_internal(n,N,d,f1,mid,high)
 
+#@nprofile.profile
 def transform(n,N,d,f,low,high):
   return transform_internal(n,N,d,f,low,high)
 
@@ -43,11 +45,13 @@ def invtransform_internal(n,N,d,v,low,high,outerlow,outerhigh):
   f1 = invtransform_internal(n,N,d,v[mid - low:],mid,high,outerlow,outerhigh)
   return [f0j * q1 + f1j * q0 for f0j,f1j in zip(f0,f1)]
 
+#@nprofile.profile
 def invtransform(n,N,d,v,low,high):
   h = invtransform_internal(n,N,d,v,low,high,low,high)
   q = goodprime.sqrtprime_product(d,low,high)
   return centermod.vector(h,q)
 
+#@nprofile.profile
 def transform_multiply(n,N,d,v,w,low,high):
   result = []
   for j in range(low,high):
@@ -57,6 +61,7 @@ def transform_multiply(n,N,d,v,w,low,high):
     result += [centermod.vector_mult(vj,wj,q)]
   return result
 
+#@nprofile.profile
 def mult_mainwork(n,N,d,f,g,low,high):
   ftransform = transform(n,N,d,f,low,high)
   gtransform = transform(n,N,d,g,low,high)
@@ -68,6 +73,7 @@ def mult_mainwork(n,N,d,f,g,low,high):
 # assumes not has_any_nontrivial_square_product(d)
 # assumes f is tuple of ZZ with len(f) == N
 # assumes g is tuple of ZZ with len(g) == N
+#@nprofile.profile
 def mult(n,N,d,f,g):
   fmax = max(abs(fj) for fj in f)
   gmax = max(abs(gj) for gj in g)
@@ -78,6 +84,7 @@ def mult(n,N,d,f,g):
   assert(all(abs(hj) <= hbound for hj in h))
   return h
 
+#@nprofile.profile
 def square(n,N,d,f):
   fmax = max(abs(fj) for fj in f)
   hbound = fmax^2 * prod(1 + abs(dj) for dj in d)

@@ -1,4 +1,5 @@
 logbits = 300
+#logbits = 30
 
 import nprofile
 profiling = ['fundamentalunit','symbols_log','kernel','squares','adjoin_sqrt','shortening_matrix','shorten','generators_mod_torsion','generators']
@@ -13,6 +14,7 @@ def quadfield(D, name='a'):
 @nprofile.profile
 @memoized
 def fundamentalunit(D):
+  assert D > 0, "Imaginary quadratic fields doesn't have fundamental units"
   K = quadfield(D)
   u = K.units(proof=False)[0]
   u0,u1 = list(u)
@@ -96,8 +98,8 @@ def units(d):
       hpowers = tuple(f.powers[j]/2 for j in range(N))
       happroxlog = tuple(f.approxlog[j]/2 for j in range(N))
       return U(helement,hpowers,happroxlog)
-    def symbols_log(f,low,high):
-      return f.element.symbols_log2(low,high)
+    def symbols2_log(f,low,high):
+      return f.element.symbols2_log(low,high)
     def conj(f): # conjugate last entry of d
       helement = f.element.conj()
       hpowers = f.powers[:N//2] + tuple(-x for x in f.powers[N//2:])
@@ -158,11 +160,11 @@ def shorten(n,d,S,L):
   # return [prod(Sj^ZZ(ej) for Sj,ej in zip(S,e) if ej != 0) for e in L]
 
 @nprofile.profile
-def symbols_log(n,S,rank):
+def symbols2_log(n,S,rank):
   low,high = 0,rank + 64 # XXX: 64 is overkill
   while True:
     try:
-      return [u.symbols_log(low,high) for u in S],low,high
+      return [u.symbols2_log(low,high) for u in S],low,high
     except:
       low,high = high,high + (high - low)
 
@@ -221,7 +223,7 @@ def torsion(d):
         raise Exception('internal error in torsion')
   
   # now <t> contains squares of all roots of unity
-  if all(s == 0 for s in symbols_log(n,[t],N)[0][0]):
+  if all(s == 0 for s in symbols2_log(n,[t],N)[0][0]):
     w,t = 2*w,sqrt(t)
 
   return w,t
@@ -247,7 +249,7 @@ def generators_internal(d):
   N = 2^n
   freerank = N - 1
   if min(d) < 0: freerank = N//2 - 1
-  print 'freerank:', freerank
+  #print(f'freerank: {freerank}')
   
   rank = freerank + 1
 
@@ -263,7 +265,7 @@ def generators_internal(d):
   #S = uniq(sorted(root + U1 + U2 + U3))
   S = list(set(root + U1 + U2 + U3))
 
-  M = matrix(GF(2),symbols_log(n,S,rank)[0])
+  M = matrix(GF(2),symbols2_log(n,S,rank)[0])
   e = kernel(n,M)
   E = squares(n,d,S,e)
   S = adjoin_sqrt(n,S,E)
@@ -296,11 +298,11 @@ def compresslog(d,approxlog):
       return tuple(result)
   return approxlog[1:]
 
-def approxregulator(d):
+def approxregulator(d, prec=500):
   U = generators_mod_torsion(d)
-  RP = RealField(500)
-  #M = matrix(RP,[compresslog(d,u.approxlog) for u in U])
-  M = matrix(RP,[u.approxlog[1:] for u in U])
+  RP = RealField(prec)
+  M = matrix(RP,[compresslog(d,u.approxlog) for u in U])
+  #M = matrix(RP,[u.approxlog[1:] for u in U])
   return abs(det(M))
 
 def mqgenerators_mod_torsion(d):
@@ -317,7 +319,7 @@ def mqgenerators_mod_torsion(d):
       numer[0] = u0s
       numer[j] = u1s
       element = K(tuple(numer),s)
-      print D, element
+      print(D, element)
       powers = tuple(ZZ(k == j) for k in range(N))
       approxlog = tuple(approxlog*(-1)^ZZ(k & j).popcount() for k in range(N))
       result += [U(element,powers,approxlog)]

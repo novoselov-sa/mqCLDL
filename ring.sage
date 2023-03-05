@@ -45,11 +45,15 @@ def ring_without_checking(d):
     def is_nonzero(f):
       return not all(fj == 0 for fj in f.c)
     def __add__(f,g):
+      if g.__class__ == Integer or g.__class__ == int:
+        return f + R.from_ZZ(g)
       if g.__class__ != f.__class__: raise Exception('do not know how to compute %s + %s' % (f,g))
       return R(fj+gj for fj,gj in zip(f.c,g.c))
     def __neg__(f):
       return R(-fj for fj in f.c)
     def __sub__(f,g):
+      if g.__class__ == Integer or g.__class__ == int:
+        return f - R.from_ZZ(g)
       if g.__class__ != f.__class__: raise Exception('do not know how to compute %s - %s' % (f,g))
       return R(fj-gj for fj,gj in zip(f.c,g.c))
     def __mul__(f,g):
@@ -93,6 +97,46 @@ def ring_without_checking(d):
       f1 = f
       for j in range(n,m,-1): f1 = f1.normonestep(j-1)
       return f1.quadnorms() + f0.quadnorms()
+    def to_sage(f, K = None, names="a", quotient=True):
+      if K != None:
+        rng = K
+      else:
+        rng = PolynomialRing(ZZ, n, names=names[:n])
+        if quotient:
+          I = rng.ideal([rng.gens()[i]^2 - d[i] for i in range(n)])
+          rng = rng.quotient(I, names=names)
+      J = [1]
+      for i in range(n):
+        J += [rng.gens()[i]*g for g in J]
+      res = sum([f.c[i]*J[i] for i in range(len(J))])
+      return res
+
+    @staticmethod
+    def random_element(bound = 10000):
+      c = tuple(randint(-bound,bound) for i in range(N))
+      return R(c)
+
+    @staticmethod
+    @memoized
+    def gens():
+      n = len(d)
+      N = 2^n
+      rng = ring(d)
+      res = []
+      for i in range(n):
+        a = [0] * N
+        a[2^i] = 1
+        a = rng(tuple(a))
+        res.append(a)
+      return res
+    
+    @staticmethod
+    def from_ZZ(a):
+      return R(tuple([ZZ(a)] + [0]*(N-1)))
+
+    @staticmethod
+    def zero():
+      return R(tuple([0]*N))
   return R
 
 def ring(d):

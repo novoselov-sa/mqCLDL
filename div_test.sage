@@ -16,7 +16,7 @@ for n in range(0,8):
       if len(d) == n:
         break
 
-    print n,d
+    print(n,d)
     for bits1 in range(0,64):
       for bits2 in range(0,64):
         f = tuple(ZZ.random_element(1-2^bits1,2^bits1) for j in range(N))

@@ -15,6 +15,7 @@ import timeit
 import fb
 import trees
 from sage.combinat.subset import SubsetsSorted
+import argparse
 
 def parse_files(d, dick, food = None, gens = None):
   if food == None:
@@ -170,8 +171,6 @@ def get_sigma(I, di, aism, pars):
 #food = {"a": -3, "b": -7, "c": -11, "d": -19, "e": -23}
 food = trees.get_food() # load food from trees
 
-pari.allocatemem(8*1024^3)
-
 seed = 1
 def testrelations(food, seed):
 	d = tuple(sorted(food.values(), key=lambda di: abs(di)))
@@ -179,7 +178,7 @@ def testrelations(food, seed):
 	#print('d:', d, 'gens:', gens)
 
 	K = field.field(d)
-	#print "Regulator: ", units.approxregulator(d)
+	print("Regulator: ", units.approxregulator(d))
 	dick = make_dictionary(d)
 	print("dick:", dick)
 	pars = parse_files(tuple(d), dick, food = food)
@@ -200,13 +199,39 @@ def testrelations(food, seed):
 
 	return 1
 
-if len(sys.argv) > 1:
-  food = eval(preparse(" ".join(sys.argv[1:])))
+parser = argparse.ArgumentParser(description='Generation of trees describing splitting of primes over subfields of multiquadratic field.')
+parser.add_argument("food", type=str, nargs="*", help="dictionary of the form {'a': d_1, ..., 'e': d_n} containing information of multiquadratic field and corresponding labels for generators")
+parser.add_argument("--store", action=argparse.BooleanOptionalAction, default=True, help="store (or not) relations matrices")
+
+parser.add_argument('--shorten', '-s', choices=['hnf', 'lll', 'bkz'], default="lll", help="algorithm for shortening of intermediate relation matrices.")
+parser.add_argument('--shorten-final', '-sf', choices=['hnf', 'lll', 'bkz'], default="lll", help="algorithm for shortening of final relation matrix.")
+parser.add_argument('--bkz-bsize', type=Integer, help="Block size for BKZ (default = log(d_1 * ... * d_n) / 2)")
+
+args = parser.parse_args()
+
+relations.set_shortening_alg(args.shorten)
+relations.set_final_shortening_alg(args.shorten_final)
+
+if args.food != []:
+  food = eval(preparse(" ".join(args.food)))
 
 trees_food = trees.get_food()
 
 if trees_food != None:
   assert food == trees_food, f"Run trees generation first! {food} != {trees_food}."
 
+if args.shorten == "bkz" or args.shorten_final == 'bkz':
+  if args.bkz_bsize != None:
+    relations.set_bkz_block_size(args.bkz_bsize)
+  else:
+    dd = prod(food.values()).abs()
+    #bs = floor(log(dd)/2)
+    bs = floor((log(dd))^(1/2) * log(log(dd)) * len(food.values()))
+    # for small dd we use default value of block size
+    if bs < 40:
+      bs = 40
+    relations.set_bkz_block_size(bs)
+
+trees.clear_dir("relations")
 testrelations(food, seed)
 #nprofile.output([goodprime,units,relations])

@@ -26,18 +26,17 @@ class TestTreesNewMethods(unittest.TestCase):
     # primes p s.t. sqrt(d_i) in F_p
     for p in primes:
       Fp = GF(p)
-      F = prime_decomp.prime_decomp_new(d_K, p)
+      F = prime_decomp.prime_decomp_fast(d_K, p)
       for I,e in F:
-        #I1,I2 = trees.ideal_up(d_K, d_L, I)
-        D1 = trees.ideal_up(d_K, d_L, I)
-        D1 = [L2.ideal(J[0], L2(str(J[1].to_sage(names='a')))) for J in D1]
-        D2 = [J for J,e in L2.factor(p)]
+        I_up = trees.ideal_up(d_K, d_L, I)
+        I_up = [[L2.ideal(J[0], L2(str(J[1].to_sage(names='a')))), e] for J,e in I_up]
+        p_L_factors_sage = [J for J,e in L2.factor(p)]
 
-        for J in D1:
-          self.assertIn(J, D2)
+        for J,e in I_up:
+          self.assertIn(J, p_L_factors_sage)
 
         # check that I = I1 * I2 in L
-        J = prod(J1 for J1 in D1)
+        J = prod(J1^e for J1,e in I_up)
         I_sage = L2.ideal(I[0], L2(str(L(I[1]).to_sage(names='a'))))
         self.assertEqual(I_sage, J)
 
@@ -60,12 +59,12 @@ class TestTreesNewMethods(unittest.TestCase):
       #  continue
 
       # p should not divide [O_L:Z[theta_L]], [O_K:Z[theta_K]], and the discriminants
-      if Mod(K.idx(), p) == 0 or Mod(L.idx(), p) == 0 or Mod(K.discriminant(), p) == 0 or Mod(L.discriminant(), p) == 0:
+      if Mod(K.idx(), p) == 0 or Mod(L.idx(), p) == 0: # or Mod(K.discriminant(), p) == 0 or Mod(L.discriminant(), p) == 0:
         continue
       Fp = GF(p)
       #print(f"DEBUG: checking p = {p}")
       #print(f"s_K = {s_K}")
-      F = prime_decomp.prime_decomp_new(d_K, p)
+      F = prime_decomp.prime_decomp_fast(d_K, p)
 
       for I,e in F:
         #print(f"I.g = {I[1].to_sage(names='a')}")
@@ -74,7 +73,7 @@ class TestTreesNewMethods(unittest.TestCase):
         #print(f"I_up[1].g = {I_up[1][1].to_sage(names='a')}")
         #print(f"sigma(I_up[1]).g = {I_up[1][1].apply_aut([0]*len(d_K) + [1]).to_sage(names='a')}")
 
-        for J in I_up:
+        for J,e in I_up:
           #print(f"J = {J}")
           p0,g0,m0 = J
           gamma,typ = m0
@@ -91,12 +90,10 @@ class TestTreesNewMethods(unittest.TestCase):
             g = theta + lift(theta1_a_p)
           self.assertEqual(g0, g, "Wrong automorphism in ideal representation!")
 
-        #self.assertEqual(I_up[0][1].to_sage(names='a'), I_up[1][1].apply_aut([0]*len(d_K) + [1]).to_sage(names='a'))
-
-        I_up = [L_sage.ideal(J[0], L_sage(str(J[1].to_sage(names='a')))) for J in I_up]
+        I_up = [[L_sage.ideal(J[0], L_sage(str(J[1].to_sage(names='a')))), e] for J,e in I_up]
         p_L_factors_sage = [J for J,e in L_sage.factor(p)]
 
-        for J in I_up:
+        for J,e in I_up:
           self.assertIn(J, p_L_factors_sage, "Wrong factor in ideal_up: it should be in the decomposition of p in O_L")
 
         I_sage = L_sage.ideal(I[0], L_sage(str(L(I[1]).to_sage(names='a'))))
@@ -104,17 +101,16 @@ class TestTreesNewMethods(unittest.TestCase):
 
         if len(I_up) == 1:
           self.assertEqual(len(I_L_factors_sage), 1)
-          self.assertIn(I_up[0], I_L_factors_sage, "Wrong ideal in ideal_up: ideal is not above input ideal")
+          self.assertIn(I_up[0][0], I_L_factors_sage, "Wrong ideal in ideal_up: ideal is not above input ideal")
         else:
-          self.assertTrue(I_up[0] in I_L_factors_sage or I_up[1] in I_L_factors_sage, "Wrong ideals in ideal_up: both ideals are not above input ideal")
+          self.assertTrue(I_up[0][0] in I_L_factors_sage or I_up[1][0] in I_L_factors_sage, "Wrong ideals in ideal_up: both ideals are not above input ideal")
 
-        for J in I_up:
+        for J,e in I_up:
           self.assertIn(J, I_L_factors_sage, "Wrong factor in ideal_up: it should be in the decomposition of I in O_L")
 
         # check that I = I1 * I2 in L
-        J = prod(J1 for J1 in I_up)
+        J = prod(J1^e for J1,e in I_up)
         self.assertEqual(I_sage, J, "Wrong factors in ideal_up: the product should be equal to the input ideal")
-        #print(f"DEBUG: I = {I}, p = {p} passed")
 
 if __name__ == '__main__':
     unittest.main()

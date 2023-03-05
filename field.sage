@@ -102,14 +102,18 @@ def field_knownniceness(d,nice):
       s = char.symbols(d,f.numer.c,f.denom,low,high)
       if 0 in s: raise Exception('zero symbol')
       return tuple(0 if si == 1 else 1 for si in s)
-    def symbols_log2(f,low,high):
+    def symbols2_log(f,low,high):
       s = char.symbols2(d,f.numer.c,f.denom,low,high)
       if 0 in s: raise Exception('zero symbol')
       return tuple(0 if si == 1 else 1 for si in s)
+    def valuation(f, P):
+      return f.to_sage(K.sage()).valuation(P)
 
     def __pow__(f, a):
       assert type(a) == Integer
-      assert a >= 0, "Unimplemented for negative exponent"
+      #assert a >= 0, "Unimplemented for negative exponent"
+      if a < 0:
+        return K.from_sage(1/f.to_sage(K.sage())) ^ abs(a)
       if a == 0:
         return K.one()
       return sage.arith.power.generic_power(f, a)
@@ -127,25 +131,21 @@ def field_knownniceness(d,nice):
       for i in range(n):
         J += [(-1)^mu[i]*g for g in J]
       nm = tuple(J[i]*f.numer.c[i] for i in range(N))
-      #print "[apply_aut] mu: ", mu, " maps f:\n", f, "\nto\n", K(nm, f.denom)
       return K(nm, f.denom)
 
-    def to_sage(f, names='a', quotient=False):
+    def to_sage(f, K = None, names='a', quotient=True):
       """
-      Conversion of field element to Sage's polynomial ring QQ[x_1,...,x_n] or
-      to the quotient ring QQ[x_1,...,x_n]/(x_1^2 - d_1, ..., x_n^2 - d_n).
-      In the first case coefficients of resulting polynomial are reduced modulo
-      (x_1^2 - d_1, ..., x_n^2 - d_n).
+      Conversion the field element to Sage's polynomial ring QQ[x_1,...,x_n] (quotient = False),
+      to the quotient ring QQ[x_1,...,x_n]/(x_1^2 - d_1, ..., x_n^2 - d_n) (quotient = True)), or
+      given field K.
       """
-      F = PolynomialRing(QQ, n, names=names[:n])
-      if quotient:  
-        I = F.ideal([F.gens()[i]^2 - d[i] for i in range(n)])
-        F = F.quotient(I)
-      J = [1]
-      for i in range(n):
-        J += [F.gens()[i]*g for g in J]
-      res = sum([f.numer.c[i]*J[i] for i in range(len(J))])
-      return res / QQ(f.denom)
+      num = f.numer.to_sage(K = K, names=names, quotient=quotient)
+      if K == None and quotient==True:
+        rng = PolynomialRing(QQ, n, names=names[:n])
+        I = num.parent().defining_ideal()
+        rng = rng.quotient(I, names=names[:n])
+        num = rng(num.lift())
+      return num / QQ(f.denom)
 
     def minimal_polynomial(f):
       return polynomial_ring.minimal_polynomial(d, f)
@@ -176,6 +176,43 @@ def field_knownniceness(d,nice):
         if f.numer.c[i] != 0:
           val += f.numer.c[i] * I_sq[i]
       return F(val)/F(f.denom)
+    
+    def relnorm(f, d_M):
+      M = field(d_M)
+      if d[-1]*d[-2] == d_M[-1]:
+        #raise Exception('unimplemented')
+        # gc = g.numer.c
+        # f.numer = R(gc[:N//4] + (0,)*(N//2) + gc[N//4:])
+        # f.denom = g.denom
+        f_s = f.apply_aut([0]*(n-2) + [1,1])
+        g = f * f_s
+        assert g.numer.c[N//4:N//4+N//2] == (0,)*(N//2), "error: element does not belongs to subfield [secondary subfield]"
+        g_numer = g.numer.c[:N//4] + g.numer.c[N//4+N//2:]
+        assert len(g_numer) == N//2
+        return M(g_numer, g.denom)
+      elif d[:-1] == d_M:
+        #raise Exception('unimplemented')
+        # f.numer = R(g.numer.c + (0,)*(N//2))
+        # f.denom = g.denom
+        f_s = f.apply_aut([0]*(n-1) + [1])
+        g = f * f_s
+        assert g.numer.c[N//2:] == (0,)*(N//2), "error: element does not belongs to subfield [primary subfield 1]"
+        g_numer = g.numer.c[:N//2]
+        assert len(g_numer) == N//2
+        return M(g_numer, g.denom)
+      elif d[:-2] + (d[-1],) == d_M:
+        #raise Exception('unimplemented')
+        #gc = g.numer.c
+        #f.numer = R(gc[:N//4] + (0,)*(N//4) + gc[N//4:] + (0,)*(N//4))
+        #f.denom = g.denom
+        f_s = f.apply_aut([0]*(n-2) + [1, 0])
+        g = f * f_s
+        assert (g.numer.c[N//4:N//4+N//4] == (0,)*(N//4)) and (g.numer.c[-N//4:] == (0,)*(N//4)), "error: element does not belongs to subfield [primary subfield 2]"
+        g_numer = g.numer.c[:N//4] + g.numer.c[N//4 + N//4:-N//4]
+        assert len(g_numer) == N//2
+        return M(g_numer, g.denom)
+      else:
+         raise Exception('unimplemented')
 
     @staticmethod
     def abs_gen():
@@ -195,6 +232,14 @@ def field_knownniceness(d,nice):
       return K(tuple([a] + [0]*(N-1)), ZZ(1))
     
     @staticmethod
+    def from_QQ(a):
+      return K(tuple([a.numerator()] + [0]*(N-1)), a.denominator())
+    
+    @staticmethod
+    def from_sage(a):
+      return from_sage_internal(d, a, 0)
+
+    @staticmethod
     def absolute_polynomial():
       return polynomial_ring.absolute_polynomial(d)
 
@@ -213,9 +258,21 @@ def field_knownniceness(d,nice):
       return mquad_disc(d)
     
     @staticmethod
+    def degree():
+      return N
+    
+    @staticmethod
     def idx():
       # Computes [O_K:Z[theta_K]]
       return mquad_idx(d)
+    
+    @staticmethod
+    def sage(food = None, names = "a"):
+      return field_sage(d, food = food, names = names)
+    
+    @staticmethod
+    def random(bits = 16):
+      return K(tuple(ZZ.random_element(1-2^bits,2^bits) for j in range(N)),ZZ.random_element(1,1+2^bits))
 
   return K
 
@@ -397,3 +454,25 @@ def mquad_idx(d): # Computes [O_K:Z[theta_K]] for K = Q(theta_K)
   disc_K = K.discriminant()
   idx_K = disc_pol / disc_K
   return idx_K
+
+@memoized
+def field_sage(d, food = None, names = "a"):
+  if food != None:
+    names = list(sorted(food.keys()))[:len(d)]
+  K = NumberField([x^2 - d[i] for i in range(len(d))], names=names)
+  return K
+
+def from_sage_internal(d, a, i=0):
+  K = field(d)
+  if a.parent() == QQ:
+    return K.from_QQ(a)
+  if a.parent() == ZZ:
+    return K.from_ZZ(a)
+
+  #print(f"i = {i}, {a.base_ring().gens()[0]^2}, {d[i]}, {d}, {a.base_ring().gens()}")
+  assert a.parent().gens()[0]^2 == d[i], f"{a.parent().gens()[0]^2} != {d[i]}"
+  g = K.gens()[i]
+
+  a0, a1 = a.list()
+  r = from_sage_internal(d, a0, i+1) + from_sage_internal(d, a1, i+1) * g
+  return r

@@ -2,7 +2,7 @@ import mult
 import sqrt
 
 for n in range(9):
-  print n
+  print(n)
   d = (-2,3,-5,7,-11,13,-17,19)[:n]
   N = 2^n
 

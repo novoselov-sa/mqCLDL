@@ -3,6 +3,7 @@ import trees
 import prime_decomp
 import polynomial_ring
 import sys
+import argparse
 
 # Note: don't use labels d,e,f simultaniously. 
 # food = {'a': 5, 'b': 79, 'c': 89} # |Cl_K| = 96 (Sage)
@@ -12,7 +13,7 @@ import sys
 #food = {'a': -7, 'b': -11, 'c': -43} # |Cl_K| = 54, norm_bound = 25 (GM)
 #food = {'a': -7, 'b': -11, 'c': -67} # |Cl_K| = 66
 #food = {'a': -7, 'b': -19, 'c': -43} # |Cl_K| = 70
-food = {'a': -7, 'b': -23, 'c': -31} # |Cl_K| = 207
+#food = {'a': -7, 'b': -23, 'c': -31} # |Cl_K| = 207
 #food = {'a': -7, 'b': -31, 'c': -47} # |Cl_K| = 510
 #food = {'a': -7, 'b': -11, 'c': -19, 'd': -23} # |Cl_K| = 23040
 #food = {'a': -7, 'b': -11, 'c': -19, 'd': -31}
@@ -28,6 +29,7 @@ food = {'a': -7, 'b': -23, 'c': -31} # |Cl_K| = 207
 
 #food = {'a':7, 'b': 79, 'c': 223, 'd': 229}
 #food = {'a': 1297, 'b': 4759, 'c': 7057, 'd': 8761}
+#food = {'a': 4759, 'b': 8761}
 #food = {'a': 1297, 'b': 7057, 'c': 8761} # h_1297 = 11, h_4759 = 13, h_7057 = 21
 #food = {'a': 7057, 'b': 8101, 'c': 8761}
 #food = {'a': 229, 'b': 257, 'c': 359, 'd': 401}
@@ -52,25 +54,41 @@ food = {'a': -7, 'b': -23, 'c': -31} # |Cl_K| = 207
 #food = {'a': -7, 'b': -11, 'c': -19}
 #food = {'a': -7, 'b': -11, 'c': -19, 'd': -23}
 #food = {"a": -3, "b": -7, "c": -11, "d": -19, "e": -23, "g": -31}
+food = None
 
-if len(sys.argv) > 1:
+parser = argparse.ArgumentParser(description='Generation of trees describing splitting of primes over subfields of multiquadratic field.')
+parser.add_argument("mquad_field", type=Integer, nargs='+', help='list of d_1, ..., d_n describing multiquadratic field')
+parser.add_argument("--bound", type=Integer, dest="bound", help="bound for primes")
+parser.add_argument("--gm-add", type=Integer, dest="gm_add", default=120, help="value to add to maximum of GM-bounds for quadratic subfields")
+parser.add_argument("--primes", type=Integer, dest="primes", nargs="+", help='additional primes', default=[])
+parser.add_argument("--hard-primes", action=argparse.BooleanOptionalAction, default=True, help="use primes p s.t. p | [O_K : Z[theta_K]] or not")
+parser.add_argument("--ramified-primes", action=argparse.BooleanOptionalAction, default=True, help="use primes p s.t. p | disc(K) or not")
+
+args = parser.parse_args()
+
+#print(f"args = {args}")
+
+if food == None:
     l = "abcdeghijklmnopqrstuvwxyz"
-    d = [ZZ(di) for di in sys.argv[1:]]
-    d = tuple(sorted(d, key=lambda di: abs(di)))
+    d = tuple(sorted(args.mquad_field, key=lambda di: abs(di)))
     food = {}
     for i in range(len(d)):
         food[l[i]] = d[i]
-#print(f"food = {food}")
+else:
+    print(f"Warning: input field is hardcoded ({food}), ignoring command line arguments.")
 
 # Additional primes to factor base. For DLOG computation add here primes from the factorization of norm of target ideal.
-PRIMES = []
+PRIMES = args.primes
+
+trees.USE_RAMIFIED_PRIMES = args.ramified_primes
+trees.USE_EXCEPTIONAL_PRIMES = args.hard_primes
 
 d = tuple(sorted(food.values(), key=lambda di: abs(di)))
 gens = list(sorted(food.keys()))
 working_folder="trees/"
 
 # set this variable to True if you want to compute norm bound using Grenié-Molteni algorithm.
-COMPUTE_GM_NBOUND = False #(len(d) <= 5)
+COMPUTE_GM_NBOUND = (len(d) <= 5)
 COMPUTE_GM_NBOUND_QUAD = True
 
 print("Generating trees for field: {})".format(d))
@@ -102,12 +120,18 @@ if COMPUTE_GM_NBOUND_QUAD:
     print("GM bound (quadr.subf.) =", GM_bound_quad)
 
 # comment out the following line if you want to use Bach bound
-norm_bound = GM_bound_quad + 100
+if args.bound == None:
+    norm_bound = GM_bound_quad + args.gm_add
+else:
+    norm_bound = args.bound
 # norm_bound = GM_bound # bound computed using algorithm of Grenié-Molteni
 
 print("Used bound =", norm_bound)
+
+print("Computing trees ...")
+t = walltime()
 tr = trees.build_tree(d, {}, norm_bound=norm_bound, names=gens, append_primes=PRIMES)
-print("-> done")
+print(f"-> done in {walltime(t)} sec.")
 
 print("Removing existing trees ...")
 trees.clean_trees(folder=working_folder)

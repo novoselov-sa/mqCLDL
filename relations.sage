@@ -1,18 +1,32 @@
 import sys
 import nprofile
 #profiling = ['get_qstuff','lift_ais','get_symbols','kernel','squares','adjoin_sqrt','shortening_matrix','shorten','get_cl_gens_optimized']
+import ring
 import field
 import fb
 import units
 from memoized import memoized
 import char
-import copy
+from fpylll import BKZ, LLL
+from fpylll.algorithms.bkz2 import BKZReduction
+from fpylll import BKZ as BKZ_FPYLLL, GSO, IntegerMatrix, FPLLL
+from fpylll.tools.quality import basis_quality
+from copy import copy
 
+COMPUTE_STICKELBERHER_IDEAL = False
 STORE_RELATIONS = True
 SHORTENNING_ENABLED = True # use shorten relations for subfields using HNF or LLL, or not.
-SHORTENNING_USE_LLL = False # use LLL to shorten relations for the subfields. Uses HNF if set to False.
+SHORTENNING_USE_LLL = True # use LLL to shorten relations for the subfields. Uses HNF if set to False.
+FINAL_SHORTENNING_USE_LLL = True # use LLL to shorten final matrix relations. Uses HNF if set to False.
+
+SHORTENNING_ALG = "lll"
+FINAL_SHORTENNING_ALG = "lll"
+SHORTENNING_BKZ_BLOCK_SIZE = 10
 
 COMPUTE_CLGP_FOR_SUBFIELDS = False
+
+# Rollback when applying the BKZ-reduction gives us the relation matrix with bigger norm than LLL-reduced matrixs
+BKZ_LLL_ROLLBACK = True 
 
 aism = 0
 sigmas = {}
@@ -44,6 +58,18 @@ def set_vars(ais, sigs, pars, d):
   for i in I:
     sqrtapprox[i] = (sqrt(i))
 
+def set_shortening_alg(v):
+  global SHORTENNING_ALG
+  SHORTENNING_ALG = v
+
+def set_final_shortening_alg(v):
+  global FINAL_SHORTENNING_ALG
+  FINAL_SHORTENNING_ALG = v
+
+def set_bkz_block_size(v):
+  global SHORTENNING_BKZ_BLOCK_SIZE
+  SHORTENNING_BKZ_BLOCK_SIZE = v
+
 #
 #	Intput: currect subfields, ais, aisc are global
 # Output: lift all three pairs (ais, aisc) to the upper field
@@ -65,8 +91,8 @@ def lift_ais_internal(d, seed):
       targ = I.index(k)
 			#
 			# there ais contains S-units for each of the three subfield
-			# aisc contains their conjuagates
-			# pointerdic point to the rage where these units are stored in ais (aisc)
+			# aisc contains their conjugates
+			# pointerdic point to the range where these units are stored in ais (aisc)
 			# for each one of the subfields
 			#
       B = ais[pointerdic[k][0]:pointerdic[k][0] + pointerdic[k][1]]
@@ -84,7 +110,7 @@ def lift_ais_internal(d, seed):
         lvec = [B[b].numer.c[0]] + (N-1)*[0]
         lvec[targ] = B[b].numer.c[1]
 				#
-				# there could be denomiators in the S-units (???)
+				# there could be denominators in the S-units (???)
 				#
         aa =  K(lvec, B[b].denom)
         #try: evaluatereal(aa,d) > 0
@@ -109,7 +135,7 @@ def lift_ais(d, seed):
 #
 # Inputs:
 #	-- d describes the field we're currecnly lifting to
-# -- high is the size of the factor-based of the field we're currenly lifting to (not sure though)
+# -- high is the size of the factor-base of the field we're currenly lifting to (not sure though)
 #
 # Outputs:
 #
@@ -156,6 +182,48 @@ def get_qstuff(d,high, seed):
 def quadfield(D, name='a'):
   return QuadraticField(D, name)
 
+def save_matrix(d, M, zero_rows=True, suffix=""):
+  fn = "relations/" + "_".join([str(di) for di in sorted(d)]) + f"_relations{suffix}"
+  if type(M) != list:
+    r = M.rows()
+  else:
+    r = M
+  with open(fn, "w") as f:
+    f.write("[")
+    for i in range(len(r)):
+      if not zero_rows and r[i].is_zero():
+        continue
+      f.write(str(r[i]))
+      if i != len(r) - 1:
+        f.write(",\n")
+    f.write("]")
+
+def load_matrix(d, suffix="", format = None):
+  fn = "relations/" + "_".join([str(di) for di in sorted(d)]) + f"_relations{suffix}"
+  with open(fn, "r") as f:
+    data = f.read()
+    #print(f"data = {data}")
+    data = eval(preparse(data))
+    if format == "list":
+      return data
+    else:
+      return matrix(data)
+
+# When compact=False prints the procedure prints norm of the matrix and all norms of the matrix rows.
+# For compact=True it prints norm of the matrix and maximal/minimal norm among rows.
+def print_norms(M, l=2, compact=True):
+  r = {}
+  for i in range(M.nrows()):
+    r[i] = RR(M.rows()[i].norm(l))
+  r = sorted(r.items(), key=lambda item: item[1])
+  if compact:
+    print(f"|r_min|_{l} = {r[0][1]}")
+    print(f"|r_max]|_{l} = {r[-1][1]}")
+  else:
+    for i,n in r:
+      print(f"|r[{i}]|_{l} = {n}")
+  print(f"|M| = {M.norm(l)}")
+
 #
 # returns the classgroup, the elements and factorizations of the relations and the factorbase
 # input: d - the generator of quadratic extension
@@ -173,28 +241,28 @@ def quadrelations(D, FB, aism, food = None):
     gens = list(sorted(food.keys()))
 
   K = quadfield(D, gens[0])
-  OK= K.ring_of_integers()
+  #OK= K.ring_of_integers()
 	#print K, OK
   
   gen = []
   #FB should not be empty and have a generator hidden somewhere
-  i = 0
-  non_intert_exists = False
-  genfinal = FB[i].elts.split(' ')[0]
-  while gen == []:
-    for ge in genfinal:
-      if ge in gens: 
-        gen = genfinal.index(ge)
-        break
-    i += 1
-    genfinal = FB[i].elts.split(' ')[0]
-  genfinal = genfinal[gen:]
-#TODO: FIX THE WHILE LOOP: it's mere purpose is to get the letter of the generator in the ideal's representation
+  # i = 0
+  # genfinal = FB[i].elts.split(' ')[0]
+  # while gen == []:
+  #   for ge in genfinal:
+  #     if ge in gens:
+  #       gen = genfinal.index(ge)
+  #       break
+  #   i += 1
+  #   genfinal = FB[i].elts.split(' ')[0]
+  # genfinal = genfinal[gen:]
+  #TODO: FIX THE WHILE LOOP: it's mere purpose is to get the letter of the generator in the ideal's representation
+
   FB2 = []
   for pr in FB:
     #replace generator
     #pre = pr.elts.replace(genfinal,'a')
-    pre = pr.elts.replace(genfinal, gens[0])
+    pre = pr.elts.replace(pr.names[0], gens[0])
     FB2 += [K.ideal(pr.prime, K(pre))]
 	#
 	# FB2 now is a list with elements of the form Fractional ideal (3, 1/2*a + 1/2)
@@ -202,10 +270,8 @@ def quadrelations(D, FB, aism, food = None):
   
   m = len(FB2)
   SUK = K.S_units(FB2) # outputs a list of generators of the S-unit group
+  #print 'SUK:',  SUK, len(SUK)
 
-
-
-#print 'SUK:',  SUK, len(SUK)
   v = []
 
   av = []
@@ -228,13 +294,13 @@ def quadrelations(D, FB, aism, food = None):
     vtemp = m*[0]
 
 #
-# each element su from the S-units is factorized and the resulting factors suf are searched insied the factor-base FB2
+# each element su from the S-units is factorized and the resulting factors suf are searched inside the factor-base FB2
 # vtemp stores the degree of a prime p from FB2 that appears in the factorization of suf
 # this degree is stoted in the vtemp at the position of p in FB2
 # vector v gives the relations btw. the S-units and the factor-base as
 # SU[i] = \prod_j p_j^v[i,j]
 #
-    for suf in K.ideal(su).factor(): #TODO: exucute factor() several times???
+    for suf in K.ideal(su).factor(): #TODO: execute factor() several times???
       i = FB2.index(suf[0]) #TODO: OPTIMIZE, index may be costly
       vtemp[i] = suf[1]
     v += [vtemp]
@@ -248,6 +314,7 @@ def quadrelations(D, FB, aism, food = None):
   if STORE_RELATIONS:
     print(f"Saving relations for field {(D,)}")
     save_matrix([D], VMat_hnf)
+    print_norms(VMat_hnf)
 
   #optional check that the relations hold
   #for i in range(len(av)):
@@ -284,17 +351,18 @@ def quadrelations(D, FB, aism, food = None):
   aisc[pointerdic[D][0]:pointerdic[D][0] + len(av)] = avc
 	#print(ais, aisc)
   #identity matrix is for the powers of the base relations
+  
   return clK, av, L, zero_matrix(len(av), aism), v
 
 
 #Checks if stuff still factorizes correctly
 def check(I, vec, FB, m):
-    I2 = prod([FB[i]^vec[i] for i in range(m)])
-    return I2 == I
+  I2 = prod([FB[i]^vec[i] for i in range(m)])
+  return I2 == I
 
 @memoized
 def relations(d, seed):
-	#print('relations seed:', seed)
+  #print('relations seed:', seed)
   n = len(d)
   N = 2^n
   K = field.field(d)
@@ -314,7 +382,7 @@ def relations(d, seed):
           f.factors = (0,)*N
           return
         if n >= 1 and g.__class__ == relations(d[:-1], seed):
-          print "heuj"
+          print("heuj")
           f.element = K(g.element)
           f.powers = g.powers
 	  # XXX: need to do something here with the change factor base matrix (primes over other primes and all that, same for the two following)
@@ -431,12 +499,214 @@ def shortening_matrix(n,S):
   return H,M
 
 @nprofile.profile
-def shortening_matrix_yet_another(n,S):
+def shortening_matrix_LLL(n, S):
   relmat = matrix(ZZ,[Si.factors for Si in S])
   #H,M = relmat.hermite_form(transformation=True, include_zero_rows=False)
   H,M = relmat.LLL(transformation=True)
-  # FIXME: remove zero rows from the matrix H with nessary changes in transformation matrix M
+  if not include_zero_rows:
+    # we remove zero rows from the matrix H = LLL(relmat) with nessesary changes in transformation matrix M
+    H0 = matrix(ZZ,[r for r in H.rows() if not r.is_zero()])
+    M0 = H.solve_left(H0) * M
+    try:
+      M = M0.change_ring(ZZ)
+      H = H0
+    except:
+      print("Warning! Failed to remove zero rows from relation matrix.")
+  assert M*relmat == H
   return H,M
+
+def remove_zero_rows(A, A_conj, A_powers):
+  A_new = []
+  A_conj_new = []
+  A_powers_new = []
+
+  for i in range(A.nrows()):
+    if not A.rows()[i].is_zero():
+      A_new.append(A.rows()[i])
+      A_conj_new.append(A_conj.rows()[i])
+      A_powers_new.append(A_powers.rows()[i])
+  return matrix(ZZ, A_new), matrix(A_conj_new), matrix(A_powers_new)
+
+@nprofile.profile
+def shortening_relations_LLL(d, S, seed):
+  relmat = matrix(ZZ,[Si.factors for Si in S])
+  #print(f"Si.conj = {Si.conj}")
+  relmat_conj = matrix([Si.conj for Si in S])
+  #print(f"Si.powers = {Si.powers}")
+  relmat_powers = matrix([Si.powers for Si in S])
+  
+  H,M = relmat.LLL(transformation=True)
+  relmat_conj = M * relmat_conj
+  relmat_powers = M * relmat_powers
+
+  # removing zero rows
+  H, relmat_conj, relmat_powers = remove_zero_rows(H, relmat_conj, relmat_powers)
+  
+  R = relations(d, seed)
+  # return tuple(R(p,c,f) for p,c,f in zip(hpowers,hconjs,hfactors))
+  S = tuple(R(p,c,f) for p,c,f in zip(relmat_powers.rows(),relmat_conj.rows(),H.rows()))
+  return S
+
+@nprofile.profile
+def shortening_matrix_BKZ_old(n,S,include_zero_rows=False):
+  relmat = matrix(ZZ,[Si.factors for Si in S])
+  H = relmat.BKZ(block_size=SHORTENNING_BKZ_BLOCK_SIZE)
+  if not include_zero_rows:
+    H = matrix(ZZ,[r for r in H.rows() if not r.is_zero()])
+  # FIXME: solve_left may return rationals. We need more effective way than using solve_left.
+  try:
+    M = relmat.solve_left(H).change_ring(ZZ)
+  except:
+    # We have non-integer entries in M.
+    print("Warning! Failed to obtain transformation matrix, fallback to LLL.")
+    H,M = relmat.LLL(transformation=True)
+  assert M*relmat == H
+  return H,M
+
+@nprofile.profile
+def shortening_matrix_BKZ_old(n, S):
+  relmat = matrix(ZZ,[Si.factors for Si in S])
+  print(f"-> {relmat.nrows()} x {relmat.ncols()} matrix of relations")
+
+  #A0 = matrix(ZZ,[r for r in relmat.rows() if not r.is_zero()])
+  #print(f"-> {A0.nrows()} x {A0.ncols()} matrix after excluding zeroes")
+
+  # BKZ algortihm fails when we have zero rows,
+  # so we reduce the relation matrix with LLL and remove zero rows
+  A0,M0 = relmat.LLL(transformation=True)
+  A0 = matrix(ZZ,[r for r in A0.rows() if not r.is_zero()])
+  print(f"-> {A0.nrows()} x {A0.ncols()} matrix after reducing using LLL")
+
+  A = IntegerMatrix.from_matrix(A0)
+  #A = IntegerMatrix.from_matrix(relmat)
+
+  M = IntegerMatrix.identity(A.nrows)
+  #gso = GSO.Mat((A), U = M)
+  #gso = GSO.Mat(copy(A), U = M, flags=GSO.INT_GRAM)
+  #gso = GSO.Mat(copy(A), U = M, float_type="mpfr") # RuntimeError: infinite number in GSO
+  #gso = GSO.Mat(copy(A), U = M, float_type="mpfr", flags=GSO.INT_GRAM) # RuntimeError: infinite number in GSO
+  #_ = gso.update_gso()
+  #param = BKZ.Param(block_size=SHORTENNING_BKZ_BLOCK_SIZE)
+  #param = BKZ.EasyParam(60, max_loops=4)
+  #param = BKZ.EasyParam(block_size=SHORTENNING_BKZ_BLOCK_SIZE, max_loops=4)
+
+  # set float_type = 'long double' or 'mpfr' in case of precision errors
+  gso = GSO.Mat(A, float_type="double",
+						U=IntegerMatrix.identity(M.nrows, int_type=M.int_type),
+						UinvT=IntegerMatrix.identity(M.nrows, int_type=M.int_type))
+  gso.update_gso()
+
+  bkz = BKZReduction(gso)
+
+  for b in range(7, SHORTENNING_BKZ_BLOCK_SIZE + 1):
+    par = BKZ_FPYLLL.Param(b,
+		  strategies=BKZ_FPYLLL.DEFAULT_STRATEGY,
+		  max_loops=8,
+		  flags=BKZ_FPYLLL.MAX_LOOPS
+	  )
+    bkz(par)
+    gso.update_gso()
+
+  # Seems like BKZ 2.0 doesn't work for matrices with big integer entries
+  # (see https://github.com/fplll/fplll/issues/373)
+  #bkz = BKZ2(gso)
+  #_ = bkz(param)
+
+  #t = walltime()
+  #print("[debug] BKZ reduction ... ")
+  # reduction without transformation matrix
+  #bkz = BKZ.reduction(copy(A), param) # fast, block size = 40
+  #bkz = BKZ.Reduction(GSO.Mat(copy(A)), param)
+  #bkz = BKZ2(copy(A))  # ValueError: math domain error in basis_quality (not enough precision?)
+  # reduction with GSO
+  #bkz = BKZ2(GSO.Mat(A)) # ValueError: math domain error in basis_quality (not enough precision?)
+  #bkz = BKZ2(GSO.Mat(A, float_type="mpfr")) # AssertionError, fpylll.fplll.bkz_param.Strategy.get_pruning
+  #bkz = BKZ2(GSO.Mat(A, float_type="mpfr", flags=GSO.INT_GRAM))  # AssertionError, fpylll.fplll.bkz_param.Strategy.get_pruning
+  #bkz = BKZ2(GSO.Mat(A, flags=GSO.INT_GRAM)) # ValueError: math domain error math in basis_quality (not enough precision?)
+  #bkz = BKZ2(LLL.Reduction(GSO.Mat(A))) # ValueError: math domain error in basis_quality (not enough precision?)
+  #_ = bkz(param)
+  #print(f"{walltime()-t}")
+
+  #bkz = BKZ.Reduction(gso, lll_obj, param)
+
+  # This is slow
+  #t = walltime()
+  #lll_obj = LLL.Reduction(gso)
+  #bkz = BKZ.Reduction(gso, lll_obj, param)
+  #bkz()
+  #print(f"-> done in {walltime()-t} sec ... ")
+  gso.update_gso()
+  H = gso.B.to_matrix(matrix(ZZ, gso.B.nrows, gso.B.ncols))
+  M = gso.U.to_matrix(matrix(ZZ, gso.U.nrows, gso.U.ncols))
+  return H,M
+
+def shortening_matrix_BKZ(A, precision = "double", transformation = True):
+  A = IntegerMatrix.from_matrix(A)
+  M = IntegerMatrix.identity(A.nrows)
+
+  gso = GSO.Mat(A, float_type=precision,
+						U=IntegerMatrix.identity(M.nrows, int_type=M.int_type),
+						UinvT=IntegerMatrix.identity(M.nrows, int_type=M.int_type))
+  gso.update_gso()
+
+  bkz = BKZReduction(gso)
+
+  for b in range(7, SHORTENNING_BKZ_BLOCK_SIZE + 1):
+    par = BKZ_FPYLLL.Param(b,
+		  strategies=BKZ_FPYLLL.DEFAULT_STRATEGY,
+		  max_loops=8,
+		  flags=BKZ_FPYLLL.MAX_LOOPS
+	  )
+    bkz(par)
+
+  H = gso.B.to_matrix(matrix(ZZ, gso.B.nrows, gso.B.ncols))
+  M = gso.U.to_matrix(matrix(ZZ, gso.U.nrows, gso.U.ncols))
+  if transformation:
+    return H,M
+  else:
+    return H
+
+@nprofile.profile
+def shortening_relations_BKZ(d, S, seed):
+  A = matrix(ZZ,[Si.factors for Si in S])
+  A_conj = matrix([Si.conj for Si in S])
+  A_powers = matrix([Si.powers for Si in S])
+
+  A = matrix(ZZ,[Si.factors for Si in S])
+  print(f"-> {A.nrows()} x {A.ncols()} matrix of relations")
+  print(f"-> l_2-norm = {A.norm(2)}")
+
+  # BKZ algorithm fails when we have zero rows or linear dependence,
+  # so we reduce the relation matrix with LLL and remove zero rows
+  A_LLL,M0 = A.LLL(transformation = True)
+  A_LLL_conj = M0 * A_conj
+  A_LLL_powers = M0 * A_powers
+
+  A_LLL, A_LLL_conj, A_LLL_powers = remove_zero_rows(A_LLL, A_LLL_conj, A_LLL_powers)
+  print(f"-> {A_LLL.nrows()} x {A_LLL.ncols()} matrix after reducing using LLL")
+  l2_LLL = A_LLL.norm(2)
+  print(f"-> l_2-norm = {l2_LLL}")
+
+  # set precision = 'long double' or 'mpfr' in case of precision errors (math domain error, get_prune, etc.)
+  H, M = shortening_matrix_BKZ(A_LLL, precision="double", transformation=True)
+  A_BKZ_conj = M * A_LLL_conj
+  A_BKZ_powers = M * A_LLL_powers
+ 
+  H, A_BKZ_conj, A_BKZ_powers = remove_zero_rows(H, A_BKZ_conj, A_BKZ_powers)
+
+  print(f"-> {H.nrows()} x {H.ncols()} matrix after BKZ-reduction")
+  l2_BKZ = H.norm(2)
+  print(f"-> l_2-norm = {l2_BKZ}")
+
+  if BKZ_LLL_ROLLBACK and (l2_LLL < l2_BKZ):
+    print("-> rollback since LLL reduction is better")
+    H = A_LLL
+    A_BKZ_conj = A_LLL_conj
+    A_BKZ_powers = A_LLL_powers
+
+  R = relations(d, seed)
+  S = tuple(R(p,c,f) for p,c,f in zip(A_BKZ_powers.rows(),A_BKZ_conj.rows(),H))
+  return S
 
 @nprofile.profile
 def shorten(n,d,S,L,seed):
@@ -474,25 +744,6 @@ def get_qinfo(r1, Aq, Aqc, Adenoms, qs):
      vecc = vector(vecc)
      denom = max(vec.denominator(), vecc.denominator())
      return aq, aqd, aqc, aqcd, qs, denom*vec, denom*vecc, denom
-
-def save_matrix(d, M, zero_rows=False):
-  fn = "relations/" + "_".join([str(di) for di in sorted(d)]) + "_relations"
-  r = M.rows()
-  with open(fn, "w") as f:
-    f.write("[")
-    for i in range(len(r)):
-      if r[i].is_zero():
-        continue
-      f.write(str(r[i]))
-      if i != len(r) - 1:
-        f.write(",\n")
-    f.write("]")
-
-def load_matrix(d):
-  fn = "relations/" + "_".join([str(di) for di in sorted(d)]) + "_relations"
-  with open(fn, "r") as f:
-    data = f.read()
-    return matrix(eval(data))
 
 # generators of full unit group mod torsion
 def relations_internal(d, file, seed, food=None):
@@ -569,11 +820,11 @@ def relations_internal(d, file, seed, food=None):
       #print('newv:', newv)
       #print('current p:', FB1[i].prime, 'FB1[i].powers:', FB1[i].powers, 'r1.factors[i]', r1.factors[i])
       if currentp != FB1[i].prime:
-            newv += [r1.factors[i]*j for j in FB1[i].powers]
-            currentp = FB1[i].prime
+        newv += [r1.factors[i]*j for j in FB1[i].powers]
+        currentp = FB1[i].prime
       else:
-         c = len(FB1[i].powers)
-         newv[-c:] = [newv[-c:][h] + r1.factors[i]*FB1[i].powers[h] for h in range(c)]
+        c = len(FB1[i].powers)
+        newv[-c:] = [newv[-c:][h] + r1.factors[i]*FB1[i].powers[h] for h in range(c)]
     #print('newv:', newv)
     R1new += [R(r1.powers, r1.conj, newv)]
 
@@ -676,29 +927,44 @@ def relations_internal(d, file, seed, food=None):
   if list(d) != finald:
     if SHORTENNING_ENABLED:
       print("shortening relations")
-      if not SHORTENNING_USE_LLL:
+      if SHORTENNING_ALG == "hnf":
         print("-> using HNF ...")
         M,L = shortening_matrix(n,S) # this thing uses HNF and requires a lot of memory
-      else:
+        print("shorten")
+        # transformation from the matrix of relations to the list of 
+        # relations with all necessary data (conjugates, powers, factors)
+        T = shorten(n,d,S,L,seed)
+      elif SHORTENNING_ALG == 'lll':
         print("-> using LLL ...")
-        #L = shortening_matrix_alt(n,S) # does not works, but wants to use LLL in some
-        M,L = shortening_matrix_yet_another(n,S) # direct application of LLL
+        T  = shortening_relations_LLL(d, S, seed)
+        # print("-> using LLL ...")
+        # M,L = shortening_matrix_LLL(n,S) # direct application of LLL
+        # print("shorten") 
+        # T = shorten(n,d,S,L,seed)
+      elif SHORTENNING_ALG == 'bkz':
+        print(f"-> using BKZ with block size {SHORTENNING_BKZ_BLOCK_SIZE}...")
+        T = shortening_relations_BKZ(d, S, seed)
+        #print(f"-> using BKZ with block size {SHORTENNING_BKZ_BLOCK_SIZE} ...")
+        #M,L = shortening_matrix_BKZ(n,S) # direct application of BKZ
+        # print("shorten") 
+        # T = shorten(n,d,S,L,seed)
+      else:
+        raise Exception(f"Unsupported shortenning method: {SHORTENNING_ALG}")
 
-    print("shorten")
-    T = shorten(n,d,S,L,seed)
     #T = uniq(sorted(T))
     T = list(set(T))
 
     if STORE_RELATIONS:
       print(f"Saving relations for field {d}")
       if M == None:
-        M = matrix(ZZ,[Ti.factors for Ti in S])
+        M = matrix(ZZ,[Ti.factors for Ti in T])
       save_matrix(d, M)
+      print_norms(M)
 
     if COMPUTE_CLGP_FOR_SUBFIELDS:
       print(f"Computing class group structure ...")
       if M == None:
-        M = matrix(ZZ,[Ti.factors for Ti in S])
+        M = matrix(ZZ,[Ti.factors for Ti in T])
       el_divisors =  M.elementary_divisors()
       print(f'-> class group for d = {d}: {[e for e in el_divisors if e not in [0,1]]}')
 
@@ -731,13 +997,36 @@ def relations_internal(d, file, seed, food=None):
   else:
     #print matrix(ZZ,[Ti.factors for Ti in T]).str()
 		#print "class group for field", d
+    print("Shortenning final matrix of relations")
     M = matrix(ZZ,[Ti.factors for Ti in T])
-    M_HNF = M.hermite_form(include_zero_rows = False)
-    el_divisors =  M_HNF.elementary_divisors()
-    print(f'Class group: {el_divisors}')
+    if FINAL_SHORTENNING_ALG == 'hnf':
+      print(f"-> using HNF ...")
+      #M_red = M.hermite_form(include_zero_rows = False)
+      M,L = shortening_matrix(n,S) # this thing uses HNF and requires a lot of memory
+      print("-> shorten")
+      # transformation from the matrix of relations to the list of 
+      # relations with all necessary data (conjugates, powers, factors)
+      T = shorten(n,d,S,L,seed)
+      M_red = matrix(ZZ,[Ti.factors for Ti in T])
+    elif FINAL_SHORTENNING_ALG == 'lll':
+      print(f"-> using LLL ...")
+      T  = shortening_relations_LLL(d, S, seed)
+      #M_red = M.LLL()
+      M_red = matrix(ZZ,[Ti.factors for Ti in T])
+    elif FINAL_SHORTENNING_ALG == 'bkz':
+      print(f"-> using BKZ with block size {SHORTENNING_BKZ_BLOCK_SIZE}...")
+      T = shortening_relations_BKZ(d, S, seed)
+      M_red = matrix(ZZ,[Ti.factors for Ti in T])
+      #M_red = M.BKZ(block_size=SHORTENNING_BKZ_BLOCK_SIZE)
+    else:
+      raise Exception(f"Unsupported shortenning method {FINAL_SHORTENNING_ALG}")
+
     if STORE_RELATIONS:
       print(f"Saving relations for field {d}")
-      save_matrix(d, M_HNF)
+      save_matrix(d, M_red)
+    print("Computing elementary divisors")
+    el_divisors =  M_red.elementary_divisors()
+    print(f'Class group: {el_divisors}')
 	#
 	# get_cl_gens() is rather slow
 	# TODO: optimize
@@ -767,7 +1056,7 @@ def relations_internal(d, file, seed, food=None):
 @nprofile.profile
 def get_cl_gens_optimized(d, T, food, genetors_explicit):
   hnf = matrix(ZZ,[Ti.factors for Ti in T])
-  M_HNF = hnf.hermite_form(include_zero_rows = False)
+  #M_HNF = hnf.hermite_form(include_zero_rows = False)
   t = walltime()
   D,U,V=hnf.smith_form()
   el_divisors =  [D[i,i] for i in range(D.ncols())]
