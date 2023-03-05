@@ -95,33 +95,7 @@ def ideal_eq_test(K, FB, I, e, g):
             #print("\t[fail (valuations)]")
             return False
     return True
-
     #TODO: ideal elements selection test
-
-    g = g.to_sage(K)
-    #return True
-    for i in range(len(e)):
-        # TODO: add check for e[i] < 0
-        if e[i] > 0:
-            P = K.ideal(FB[i].prime, K(FB[i].elts))
-            el = I.random_element()
-            if not (el/g in P):
-            #if not (el in g*P):
-                print(f"-> check for e[{i}] = {e[i]} [fail]")    
-                return False
-            else:
-                print(f"-> check for e[{i}] = {e[i]} [ok]") 
-        elif e[i] < 0:
-            P = K.ideal(FB[i].prime, K(FB[i].elts))
-            el = I.random_element()
-            P_inv = clgp.prime_ideal_inverse(P)
-            if not (el/g in P_inv):
-            #if not (el in g*P_inv):
-                print(f"-> check for e[{i}] = {e[i]} [fail]")    
-                return False
-            else:
-                print(f"-> check for e[{i}] = {e[i]} [ok]")
-    return True
 
 # Heuristic check for equality I^2 == g * prod P_i^(e_i)], i = 1, ..., #FB.
 def ideal_sq_eq_test(K, FB, I, e, g):
@@ -139,33 +113,7 @@ def ideal_sq_eq_test(K, FB, I, e, g):
             #print("\t[fail (valuations)]")
             return False
     return True
-
     #TODO: ideal elements selection test
-
-    g = g.to_sage(K)
-    #return True
-    for i in range(len(e)):
-        # TODO: add check for e[i] < 0
-        if e[i] > 0:
-            P = K.ideal(FB[i].prime, K(FB[i].elts))
-            el = I.random_element()
-            if not (el/g in P):
-            #if not (el in g*P):
-                print(f"-> check for e[{i}] = {e[i]} [fail]")    
-                return False
-            else:
-                print(f"-> check for e[{i}] = {e[i]} [ok]") 
-        elif e[i] < 0:
-            P = K.ideal(FB[i].prime, K(FB[i].elts))
-            el = I.random_element()
-            P_inv = clgp.prime_ideal_inverse(P)
-            if not (el/g in P_inv):
-            #if not (el in g*P_inv):
-                print(f"-> check for e[{i}] = {e[i]} [fail]")    
-                return False
-            else:
-                print(f"-> check for e[{i}] = {e[i]} [ok]")
-    return True
 
 # For an ideal I returns a pair (g,e) s.t. I J = I  * prod_i(P[i]^e[i]) = g O_K,
 # where g is a field element in compact representation and P[i] are primes from the
@@ -441,7 +389,9 @@ FB = clgp.get_FB(d, d_parent = (), food=food)
 
 assert not fb.is_smooth(I.q, FB), "This code is for non-smooth ideals. For smooth ideal run dlog_smooth.sage"
 
+t = walltime()
 dls = cl_dlog(d, I)
+print(f"Computation time: {walltime(t)} sec.")
 
 M,B,U,V,U_inv,V_inv = clgp.get_matrices(d)
 
