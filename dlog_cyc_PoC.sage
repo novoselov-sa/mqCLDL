@@ -207,35 +207,15 @@ def cl_dlog(d, I, d_parent = ()):
                 assert ideal_eq_test(K_st, FB_st, I_st, -vector(e_st) + vector(h2_st), h_st), f"incorrect dlog computation for the field {K_st}"
                 #assert I_st.to_sage(K_st) * fb.prod_ideal(K_st, FB_st, e_st) == K_st.ideal(h_st.evaluate(ideal_sqrt=True).to_sage(K_st))
 
-                #print("-> e_s:", e_s)
-                #print("-> e_t:", e_t)
-                #print("-> e_st:", e_st, "\n")
-
                 e_s_lift = clgp.lift_e(e_s, FB_s)
                 e_t_lift = clgp.lift_e(e_t, FB_t)
 
                 g2_s = clgp.lift_e(h2_s, FB_s)
                 g2_t = clgp.lift_e(h2_t, FB_t)
 
-                # Since factor base contains sigma-conjugated primes, we need to convert exponents
-                # TODO: find more effective way
-                # e_st_2 = []
-                # for i in range(len(e_st)):
-                #     j = FB_st_sage.index(FB_st_conj[i])
-                #     ei_conj = e_st[j]
-                #     #print(f"i = {i} => j = {j}| {FB_st[i].prime}, {FB_st[i].elts} => {FB_st[j].prime}, {FB_st[j].elts}")
-                #     #assert i != j or K_st(FB_st[i].elts).is_rational()
-                #     e_st_2.append(ei_conj)
-                # e_st = e_st_2
-                #print(f"-> e_st.conj = {e_st}")
-
                 # We assume that the automorphism sigma is applied to the prime ideals in trees for the subfield field K_st.
                 e_st_lift = clgp.lift_e(e_st, FB_st)
                 g2_st = clgp.lift_e(h2_st, FB_st)
-
-                #print(f"-> e_s_lift {d_s} => {d}: {e_s_lift}")
-                #print(f"-> e_t_lift {d_t} => {d}: {e_t_lift}")
-                #print(f"-> e_st_lift {d_st} => {d}: {e_st_lift}")
 
                 assert(len(e_s_lift) == len(e_t_lift))
                 assert(len(e_t_lift) == len(e_st_lift))
@@ -246,30 +226,11 @@ def cl_dlog(d, I, d_parent = ()):
 
                 # applying norm equation for second principal part
                 g2 = [g2_s[i] + g2_t[i] - g2_st[i] for i in range(len(g2_s))]
-                #print(f"g2 = {g2}")
 
-                #print(f"h_s = {h_s.to_sage(K)}")
-                #print(f"h_t = {h_t.to_sage(K)}")
-                #print(f"h_st = {h_st.to_sage(K)}")
-                #g_s = field.field(d)(h_s)
-                #g_t = field.field(d)(h_t)
-                #g_st = field.field(d)(h_st)
                 g_s = KC(h_s)
                 g_t = KC(h_t)
                 g_st = KC(h_st)
 
-                #print(f"g_s = {g_s}")
-                #print(f"g_t = {g_t}")
-                #print(f"g_st = {g_st}")
-
-                #print(f"g_s = {g_s.to_sage(K)}, nrm. = {g_s.absnorm().factor()}")
-                #print(f"g_t = {g_t.to_sage(K)}, nrm. = {g_t.absnorm().factor()}")
-                #print(f"g_st.conj = {g_st.conj().to_sage(K)}, , nrm. = {g_st.conj().absnorm().factor()}")
-                #print(f"g_st = {g_st.to_sage(K)}, , nrm. = {g_st.absnorm().factor()}")
-
-                #print(f"g_st = {g_st.to_sage()}")
-                #print(f"g (sage) = {g_s.to_sage(K)*g_t.to_sage(K) / g_st.conj().to_sage(K)}")
-                #g = g_s * g_t / g_st
                 g = g_s * g_t / g_st.conj()
 
                 assert ideal_sq_eq_test(K, FB, I, -vector(e) + vector(g2), g) # N(I prod P_i^e_i) == N(g) prod P_i^(g2_i)
@@ -280,20 +241,10 @@ def cl_dlog(d, I, d_parent = ()):
                 #    g_sqrt = g^(1/2)
                 
                 #g_sqrt = ideal.idealsqrtshorten(len(d),2^len(d),d,g)
-                #print(f"sqrt(g O_K) = ({g_sqrt.to_sage()})")
-                #print(f"N(g) = {g.absnorm().factor()}, N(sqrt(g)) = {g_sqrt.absnorm().factor()}")
 
                 #g2_sqrt = vector(g2) / 2
-                #print(f"sqrt(g2) = {g2_sqrt}")
 
-                #CL = K.class_group(proof=False)
-                #assert {CL(I.to_sage(K)^2) == CL(K.ideal(g.evaluate(ideal_sqrt=True).to_sage(K)) * fb.prod_ideal(K, FB, e))}
-                #assert {CL(I.to_sage(K)^2) == CL(fb.prod_ideal(K, FB, e))}
                 assert ideal_sq_eq_test(K, FB, I, -vector(e) + vector(g2), g)
-                #assert I.to_sage(K)^2 * fb.prod_ideal(K, FB, e) == K.ideal(g.evaluate(ideal_sqrt=True).to_sage(K)), "Wrong generator"
-
-                #print(f"I.is_principal() = {I.to_sage(K).is_principal()}")
-                #print(f"(I^2).is_principal() = {(I.to_sage(K)^2).is_principal()}")
 
                 e_g = clgp.primes_to_gens(e, V, B, strip_zeroes=True)
                 print(f"Computing smooth square root for {e_g} in class group {clgp.strip_oz(B_t)} of the field {d}... ")
@@ -306,19 +257,8 @@ def cl_dlog(d, I, d_parent = ()):
 
                 print(f"Selecting suitable root ...")
                 # smooth_ideal_sqrt_cyc should return pairs (h, e_sqrt) s.t. J^-1 = h prod_i P_i^(2*e_sqrt[i])
-                # FB_sage = [K.ideal(FB[i].prime, K(FB[i].elts)) for i in range(len(FB))]
                 for h,e_sqrt in e_sqrts:
-                    #print(f"h = {h}")
-                    #print(f"e_sqrt = {e_sqrt}")
-                    #print(f"-e = {-vector(e)}")
                     assert -vector(e) == vector(e_sqrt) * 2 + vector(h)
-                    #nrm1 = prod([FB_sage[i].absolute_norm()^(2*e_sqrt[i]+h[i]) for i in range(len(e_sqrt))])
-                    #nrm2 = prod([FB_sage[i].absolute_norm()^(-vector(e)[i]) for i in range(len(e))])
-                    #assert nrm1 == nrm2, f"Field {d}. Wrong sqrt of smooth ideal: {e_sqrt}, N(h sqrt(J)^2) = {nrm1.factor()} != N(J) = {nrm2.factor()}"
-                    #assert fb.prod_ideal(K, FB, h).is_principal()
-                    #print(f"sqrt(g2) + sqrt(h) + sqrt(g): {vector(g2_sqrt) + vector(h)/2 + vector([g.valuation(FB_sage[i]) for i in range(len(FB_sage))])/2}")
-                    #assert fb.prod_ideal(K, FB, vector(g2_sqrt) + vector(h)/2 + vector([g.valuation(FB_sage[i]) for i in range(len(FB_sage))])/2).is_principal()
-                    #print(f"result: {(g_sqrt, vector(g2_sqrt) + vector(h)/2, -vector(e_sqrt))}")
 
                     # FIXME: The following generators should be computed using S-units calculations.
                     # Computing generator for prod_i P_i^h[i].
@@ -330,7 +270,6 @@ def cl_dlog(d, I, d_parent = ()):
 
                     # Computing generator for prod_i P_i^h[i].
                     g2_fb = fb.prod_ideal(K, FB, g2)
-                    #assert g2_fb.is_principal()
                     g2O_gen = g2_fb.gens_reduced()
                     assert len(g2O_gen) == 1
                     g2O_gen = g2O_gen[0]
@@ -351,7 +290,6 @@ def cl_dlog(d, I, d_parent = ()):
                     except:
                         pass
                 print("-> [fail]")
-                #return []
                 continue    
     return res
 

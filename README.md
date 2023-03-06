@@ -26,4 +26,4 @@ and on it's adaptation to the imaginary multiquadratic fields from:
 
 # Versions
 To download all code from this repo use link:
-* [mqCLDL-v2.0.0.zip](releases/mqCLDL-v2.0.0.zip)
+* [mqCLDL-v2.0.1.zip](releases/mqCLDL-v2.0.1.zip)
