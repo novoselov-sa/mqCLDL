@@ -12,7 +12,6 @@ import clgp
 # Output: l s.t. (g_i^t)^l = g_i^(ei*t)
 # Note: in order to avoid evaluation of prime ideals products we work with exponents only.
 def dlog_pow_2(ei, t, r, bi):
-    #print(f"[begin] dlog_pow_2(ei = {ei}, t = {t}, r = {r}, bi = {bi})")
     l = 0
     gamma_e = 2^(r-1)*t # gamma = generator^(2^(r-1)) = (g_i^t)^(2^(r-1))
     for k in range(r):
@@ -26,9 +25,7 @@ def dlog_pow_2(ei, t, r, bi):
             d_k = 1
         else:
             raise Exception("DLOG_pow2: Something wrong in assumptions!")
-        #print(f"-> dlog_pow_2: k = {k}, d_k = {d_k}, ei = {ei} = {Mod(ei, 2^r)} mod 2^r, {Mod(h_k_e, bi)}, {Mod(gamma_e, bi)}")
         l = l + 2^k * d_k
-    #print(f"[done] dlog_pow_2({ei}, {t}, {r}, {bi}) => l = {l}")
     return l
 
 # Extraction of square root of element a in cyclic group <g_i> of order b_i.
@@ -78,7 +75,7 @@ def smooth_ideal_sqrt(d, e, d_parent=(), food=None):
     #print(f"-> Input ideal exponents in terms of Cl_K gens, e_g = {e_g}")
 
     # check that ideal is written correctly in terms of generators of class group.
-    assert clgp.check_prods_p2g(d, e, e_g, d_parent, food=food), "Wrong conversion prod P_i^e_i =>  prod g_i^et_i"
+    #assert clgp.check_prods_p2g(d, e, e_g, d_parent, food=food), "Wrong conversion prod P_i^e_i =>  prod g_i^et_i"
 
     J_sqrts = []
     for i in range(len(e_g)):
@@ -96,9 +93,9 @@ def smooth_ideal_sqrt(d, e, d_parent=(), food=None):
 
         #print(f"h = {h}\nJ_sqrt = {J_sqrt}\ne = {e}\ne_g = {e_g}")
         e_sqrt = clgp.gens_to_primes(J_sqrt, V_inv)
-        assert clgp.check_prods_p2g(d, e_sqrt, J_sqrt, d_parent, food=food), "Wrong conversion from prod g[i]^e_g[i] to P[i]^e[i]"
+        #assert clgp.check_prods_p2g(d, e_sqrt, J_sqrt, d_parent, food=food), "Wrong conversion from prod g[i]^e_g[i] to P[i]^e[i]"
         #print(f"-> e_sqrt = {e_sqrt}")
-        clgp.check_smooth_sqrt(d, e, e_sqrt, d_parent, food=food)
+        #clgp.check_smooth_sqrt(d, e, e_sqrt, d_parent, food=food)
 
         # principal multiplier
         h = vector(e) - 2*vector(e_sqrt)

@@ -24,12 +24,8 @@ verify.set(verify.LIGHT)
 
 proof.all(False)
 
-SLOW_SQRT_TEST = False
-
-REDUCE_VECTORS = False # TODO: change principal factor
-
-#pari.allocatemem(1024*1024*1024)
-#print(f"Pari stack size: {pari.stacksize()}")
+pari.allocatemem(60*1024^3)
+print(f"Pari stack size: {pari.stacksize()}")
 
 def apply_aut_rec(K, K_gens, f, mu, i):
     n = len(K_gens)
