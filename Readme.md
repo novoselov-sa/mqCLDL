@@ -2,7 +2,9 @@ This is a source code for the paper "On the discrete logarithm problem in the id
 
 It is built on top of the implementation of the Biasse-van Vredendaal algorithm for the class group computation for real multiquadratic fields:
 * https://scarecryptow.org/publications/multiclass.html
+
 and on it's adaptation to the imaginary multiquadratic fields from:
+
 * https://github.com/novoselov-sa/multiclass-im
 
 # Requirements
