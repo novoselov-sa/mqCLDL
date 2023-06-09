@@ -3,10 +3,13 @@ import nprofile
 #profiling = ['get_qstuff','lift_ais','get_symbols','kernel','squares','adjoin_sqrt','shortening_matrix','shorten','get_cl_gens_optimized']
 import ring
 import field
+import field_compact
 import fb
+import clgp
 import units
 from memoized import memoized
 import char
+import sunits
 from fpylll import BKZ, LLL
 from fpylll.algorithms.bkz2 import BKZReduction
 from fpylll import BKZ as BKZ_FPYLLL, GSO, IntegerMatrix, FPLLL
@@ -85,7 +88,7 @@ def lift_ais_internal(d, seed):
   k0 = K(N*[0],1) # TODO: this is 0 in K. Why do we need it???
   A = aism*[k0]
   Ac = aism*[k0]
-#print 'pointerdic:', pointerdic
+  #print 'pointerdic:', pointerdic
   for k in pointerdic.keys():
     if k in I:
       targ = I.index(k)
@@ -99,7 +102,6 @@ def lift_ais_internal(d, seed):
       Bc = aisc[pointerdic[k][0]:pointerdic[k][0] + pointerdic[k][1]]
 
       for b in range(len(B)):
-				
 				#
 				# lift the found S-units (stored as coeff-vectors [free-coeff, coeff_in_front_of d_i's]) to the larger field
 				# by creating a vector (twice as long as the coeff-vector), where [coeff_in_front_of d_i's] are shifted accoring
@@ -116,9 +118,9 @@ def lift_ais_internal(d, seed):
         #try: evaluatereal(aa,d) > 0
         #except: print aa,d
         A[pointerdic[k][0] + b] = aa
-				
+
 				#
-				# same as the above but for the cojuagates
+				# same as the above but for the conjugates
 				#
         lvec = [Bc[b].numer.c[0]] + (N-1)*[0]
         lvec[targ] = Bc[b].numer.c[1]
@@ -132,13 +134,19 @@ def lift_ais_internal(d, seed):
 def lift_ais(d, seed):
   return lift_ais_internal(d, seed)
 
-#
+# Computes values of characters (altsymbols) for the basis elements of S-units.
+# We recall that S-units are represented as power products of small field elements.
 # Inputs:
-#	-- d describes the field we're currecnly lifting to
+# -- d describes the field we're currently lifting to
 # -- high is the size of the factor-base of the field we're currenly lifting to (not sure though)
 #
 # Outputs:
-#
+# -- list A of base field elements of S-units.
+# -- list Ac of sigma-conjugates of field elements from A.
+# -- matrix Aq that contains the results of evaluation of characters at elements of A. Each row consist of evaluation of characters at element of A.
+# -- matrix Ac is the same as Aq but for conjugates Ac of A.
+# -- list Adenoms of denominators of A.
+# -- list qs of primes that were used for characters creation.
 @memoized
 def get_qstuff_internal(d, high, seed):
   K = field.field(d)
@@ -156,25 +164,25 @@ def get_qstuff_internal(d, high, seed):
       Adenoms += [1]
     else:
       Adenoms += [A[a].denom]
-			#
-			# get_qs is in field.sage
-			# 
+      #
+	  # get_qs is in field.sage
+      # 
       aq = A[a].get_qs(0,(high + 64))
       aqc = Ac[a].get_qs(0,(high + 64))
-			#print('A[a]:', A[a])
+      #print('A[a]:', A[a])
       #print "getting qs",a,walltime(t)
       aqn = len(aq)
       Aq += [[aq[i][0] for i in range(aqn)]]
       Aqc += [[aqc[i][0] for i in range(aqn)]]
 			#print('Aq:', Aq)
       if qs == []:
-            qs =  [aq[i][1] for i in range(len(aq))]
+        qs = [aq[i][1] for i in range(len(aq))]
   Aq = matrix(Aq)
   Aqc = matrix(Aqc)
   return A, Ac, Aq, Aqc, Adenoms, qs
 
 @nprofile.profile
-def get_qstuff(d,high, seed):
+def get_qstuff(d, high, seed):
 	#print('get_qstuff seed:', seed)
   return get_qstuff_internal(d,high,seed)
 
@@ -231,32 +239,17 @@ def print_norms(M, l=2, compact=True):
 #				aism - factor-base size
 #
 @memoized
-def quadrelations(D, FB, aism, food = None):
+def quadrelations(D, FB, aism, seed, food = None):
   assert len(FB) != 0, "factor base should not be empty"
   #search replacement generator
-  #gens =  ['a','b','c','d','e','f','g']
   if food == None:
     gens =  ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
   else:
     gens = list(sorted(food.keys()))
 
   K = quadfield(D, gens[0])
-  #OK= K.ring_of_integers()
+  #OK = K.ring_of_integers()
 	#print K, OK
-  
-  gen = []
-  #FB should not be empty and have a generator hidden somewhere
-  # i = 0
-  # genfinal = FB[i].elts.split(' ')[0]
-  # while gen == []:
-  #   for ge in genfinal:
-  #     if ge in gens:
-  #       gen = genfinal.index(ge)
-  #       break
-  #   i += 1
-  #   genfinal = FB[i].elts.split(' ')[0]
-  # genfinal = genfinal[gen:]
-  #TODO: FIX THE WHILE LOOP: it's mere purpose is to get the letter of the generator in the ideal's representation
 
   FB2 = []
   for pr in FB:
@@ -267,8 +260,10 @@ def quadrelations(D, FB, aism, food = None):
 	#
 	# FB2 now is a list with elements of the form Fractional ideal (3, 1/2*a + 1/2)
 	#
-  
+
   m = len(FB2)
+  print(f"Computing S-units for D = {D} ... ")
+  #SUK = K.S_units(FB2, proof=False) # outputs a list of generators of the S-unit group
   SUK = K.S_units(FB2) # outputs a list of generators of the S-unit group
   #print 'SUK:',  SUK, len(SUK)
 
@@ -283,23 +278,30 @@ def quadrelations(D, FB, aism, food = None):
     if su == -1:
       continue
     su0, su1 = list(su) #su0 - free coeff, su1 - gen's coeff
+    # if su0 + su1*C(sqrt(D)) > 0:
+    #   av += [su] #FIXME: make compatible with imaginary
+    # else:
+    #   av += [-su]
+    # if su0 - su1*C(sqrt(D)) > 0:
+    #  avc += [K([su0,-su1])] #FIXME: make compatible with imaginary
+    # else:
+    #  avc += [-K([su0,-su1])]
+
     if su0 + su1*C(sqrt(D)) > 0:
-      av += [su] #FIXME: make compatible with imaginary
+      av += [su]
+      avc += [K([su0,-su1])]
     else:
       av += [-su]
-    if su0 - su1*C(sqrt(D)) > 0:
-      avc += [K([su0,-su1])] #FIXME: make compatible with imaginary
-    else:
       avc += [-K([su0,-su1])]
     vtemp = m*[0]
 
-#
-# each element su from the S-units is factorized and the resulting factors suf are searched inside the factor-base FB2
-# vtemp stores the degree of a prime p from FB2 that appears in the factorization of suf
-# this degree is stoted in the vtemp at the position of p in FB2
-# vector v gives the relations btw. the S-units and the factor-base as
-# SU[i] = \prod_j p_j^v[i,j]
-#
+    #
+    # each element su from the S-units is factorized and the resulting factors suf are searched inside the factor-base FB2
+    # vtemp stores the degree of a prime p from FB2 that appears in the factorization of suf
+    # this degree is stoted in the vtemp at the position of p in FB2
+    # vector v gives the relations btw. the S-units and the factor-base as
+    # SU[i] = \prod_j p_j^v[i,j]
+    #
     for suf in K.ideal(su).factor(): #TODO: execute factor() several times???
       i = FB2.index(suf[0]) #TODO: OPTIMIZE, index may be costly
       vtemp[i] = suf[1]
@@ -311,16 +313,13 @@ def quadrelations(D, FB, aism, food = None):
   print(f'for D = {D} VMat_hnf:')
   print(VMat_hnf.elementary_divisors())
 
-  if STORE_RELATIONS:
-    print(f"Saving relations for field {(D,)}")
-    save_matrix([D], VMat_hnf)
-    print_norms(VMat_hnf)
+
 
   #optional check that the relations hold
   #for i in range(len(av)):
   #    if not check(av[i]*OK, v[i], FB2, m):
-  #        print av[i]
-  #        print v[i]
+  #        print(av[i])
+  #        print(v[i])
   #        raise AssertionError
 
   #optional class group computation
@@ -338,19 +337,30 @@ def quadrelations(D, FB, aism, food = None):
     d = av[i].denominator()
     av[i] = K((d*av[i]).list(), d)
     avc[i] = K((d*avc[i]).list(), d)
-	#print 'av[i].denominator():', d, 'av[i]:', av[i], 'avc[i]', avc[i]
 
   #initialize elements as quad representation
-#print 'len(av):', len(av), 'pointerdic[D][1]:', pointerdic[D][1]
+  #print 'len(av):', len(av), 'pointerdic[D][1]:', pointerdic[D][1]
 
   assert len(av) == pointerdic[D][1]
   L = zero_matrix(len(av), aism) #len(av) >= aism - 1 (since we removed -1 from SU)
+  
+  #identity matrix is for the powers of the base relations
   L[:,pointerdic[D][0]:pointerdic[D][0] + len(av)] = identity_matrix(len(av))
 
   ais[pointerdic[D][0]:pointerdic[D][0] + len(av)] = av
   aisc[pointerdic[D][0]:pointerdic[D][0] + len(av)] = avc
-	#print(ais, aisc)
-  #identity matrix is for the powers of the base relations
+
+  if STORE_RELATIONS:
+    print(f"Saving relations for field {(D,)}")
+    R = relations((D,), seed)
+    rels = []
+    for i in range(len(av)):
+      rel = R(L[i], [0]*aism, v[i])
+      if not rel.is_zero(): # exclude units
+        rels.append(rel)
+      #rels.append(R(L[i], [0]*aism, v[i]))
+    A, Ac = lift_ais((D,), seed)
+    sunits.save((D,), rels, A, Ac)
   
   return clK, av, L, zero_matrix(len(av), aism), v
 
@@ -367,6 +377,11 @@ def relations(d, seed):
   N = 2^n
   K = field.field(d)
   class R:
+    # Class for representing a relation a*O_K = prod_i FB[i] ^ factors[i], where
+    # a = prod_j A[j]^powers[j] * Ac[j]^conj[j] for A and Ac the (global) lists of 
+    # small base elements of the field.
+    #
+    # Relation is stored as a triple (powers, conj, factors).  
     def __init__(f,*args):
       if len(args) == 0: raise Exception('not known how to initialize empty relations')
       # one relation as input of the form (elt, factorization vector)
@@ -385,7 +400,7 @@ def relations(d, seed):
           print("heuj")
           f.element = K(g.element)
           f.powers = g.powers
-	  # XXX: need to do something here with the change factor base matrix (primes over other primes and all that, same for the two following)
+	        # XXX: need to do something here with the change factor base matrix (primes over other primes and all that, same for the two following)
           # XXX: maybe load something from file here
           f.factors = g.factors + g.factors
           # XXX: might be able to do without qchars,otherwise need len(factors)
@@ -397,12 +412,11 @@ def relations(d, seed):
           f.approxlog = g.approxlog[:N//4]*2 + g.approxlog[N//4:]*2
           return
         if n >= 2 and g.__class__ == relations(d[:-2] + (d[-2]*d[-1],), seed):
-          f.elements = K(g.element)
+          f.element = K(g.element)
           f.powers = g.powers[:N//4] + (0,)*(N//2) + g.powers[N//4:]
           f.approxlog = g.approxlog + g.approxlog[N//4:] + g.approxlog[:N//4]
           return
       if len(args) == 3: # XXX: trusting caller to provide suitable values
-				#print('len(args)==3')
         f.powers, f.conj, f.factors = args
         return
       raise Exception('not known how to initialize this format')
@@ -436,6 +450,14 @@ def relations(d, seed):
       if 0 in s:
         raise Exception('zero symbol')
       return tuple(0 if si == 1 else 1 for si in s)
+    def generator(f, A, Ac):
+      # returns generator (in compact representation) of principal ideal corresponding to the relation
+      assert len(A) == len(f.powers)
+      assert len(A) == len(Ac)
+      KC = field_compact.field_compact(d)
+      return prod([KC(A[i])^f.powers[i] * KC(Ac[i])^f.conj[i] for i in range(len(f.powers))], KC.one())
+    def is_zero(f):
+      return vector(f.factors).is_zero()
   return R
 
 def subsetprod(d,g,e,seed):
@@ -471,7 +493,6 @@ def squares(n,d,S,e,seed):
 
 @nprofile.profile
 def get_symbols(d, n, S, seed):
-	#print('get_symbols seed:', seed)
   A, Ac, Aq, Aqc, Adenoms, qs = get_qstuff(d, n, seed)
   return matrix(GF(2), [u.symbols_log(Aq, Aqc, Adenoms, qs) for u in S])
 
@@ -534,7 +555,7 @@ def shortening_relations_LLL(d, S, seed):
   relmat_conj = matrix([Si.conj for Si in S])
   #print(f"Si.powers = {Si.powers}")
   relmat_powers = matrix([Si.powers for Si in S])
-  
+
   H,M = relmat.LLL(transformation=True)
   relmat_conj = M * relmat_conj
   relmat_powers = M * relmat_powers
@@ -547,106 +568,13 @@ def shortening_relations_LLL(d, S, seed):
   S = tuple(R(p,c,f) for p,c,f in zip(relmat_powers.rows(),relmat_conj.rows(),H.rows()))
   return S
 
-@nprofile.profile
-def shortening_matrix_BKZ_old(n,S,include_zero_rows=False):
-  relmat = matrix(ZZ,[Si.factors for Si in S])
-  H = relmat.BKZ(block_size=SHORTENNING_BKZ_BLOCK_SIZE)
-  if not include_zero_rows:
-    H = matrix(ZZ,[r for r in H.rows() if not r.is_zero()])
-  # FIXME: solve_left may return rationals. We need more effective way than using solve_left.
-  try:
-    M = relmat.solve_left(H).change_ring(ZZ)
-  except:
-    # We have non-integer entries in M.
-    print("Warning! Failed to obtain transformation matrix, fallback to LLL.")
-    H,M = relmat.LLL(transformation=True)
-  assert M*relmat == H
-  return H,M
-
-@nprofile.profile
-def shortening_matrix_BKZ_old(n, S):
-  relmat = matrix(ZZ,[Si.factors for Si in S])
-  print(f"-> {relmat.nrows()} x {relmat.ncols()} matrix of relations")
-
-  #A0 = matrix(ZZ,[r for r in relmat.rows() if not r.is_zero()])
-  #print(f"-> {A0.nrows()} x {A0.ncols()} matrix after excluding zeroes")
-
-  # BKZ algortihm fails when we have zero rows,
-  # so we reduce the relation matrix with LLL and remove zero rows
-  A0,M0 = relmat.LLL(transformation=True)
-  A0 = matrix(ZZ,[r for r in A0.rows() if not r.is_zero()])
-  print(f"-> {A0.nrows()} x {A0.ncols()} matrix after reducing using LLL")
-
-  A = IntegerMatrix.from_matrix(A0)
-  #A = IntegerMatrix.from_matrix(relmat)
-
-  M = IntegerMatrix.identity(A.nrows)
-  #gso = GSO.Mat((A), U = M)
-  #gso = GSO.Mat(copy(A), U = M, flags=GSO.INT_GRAM)
-  #gso = GSO.Mat(copy(A), U = M, float_type="mpfr") # RuntimeError: infinite number in GSO
-  #gso = GSO.Mat(copy(A), U = M, float_type="mpfr", flags=GSO.INT_GRAM) # RuntimeError: infinite number in GSO
-  #_ = gso.update_gso()
-  #param = BKZ.Param(block_size=SHORTENNING_BKZ_BLOCK_SIZE)
-  #param = BKZ.EasyParam(60, max_loops=4)
-  #param = BKZ.EasyParam(block_size=SHORTENNING_BKZ_BLOCK_SIZE, max_loops=4)
-
-  # set float_type = 'long double' or 'mpfr' in case of precision errors
-  gso = GSO.Mat(A, float_type="double",
-						U=IntegerMatrix.identity(M.nrows, int_type=M.int_type),
-						UinvT=IntegerMatrix.identity(M.nrows, int_type=M.int_type))
-  gso.update_gso()
-
-  bkz = BKZReduction(gso)
-
-  for b in range(7, SHORTENNING_BKZ_BLOCK_SIZE + 1):
-    par = BKZ_FPYLLL.Param(b,
-		  strategies=BKZ_FPYLLL.DEFAULT_STRATEGY,
-		  max_loops=8,
-		  flags=BKZ_FPYLLL.MAX_LOOPS
-	  )
-    bkz(par)
-    gso.update_gso()
-
-  # Seems like BKZ 2.0 doesn't work for matrices with big integer entries
-  # (see https://github.com/fplll/fplll/issues/373)
-  #bkz = BKZ2(gso)
-  #_ = bkz(param)
-
-  #t = walltime()
-  #print("[debug] BKZ reduction ... ")
-  # reduction without transformation matrix
-  #bkz = BKZ.reduction(copy(A), param) # fast, block size = 40
-  #bkz = BKZ.Reduction(GSO.Mat(copy(A)), param)
-  #bkz = BKZ2(copy(A))  # ValueError: math domain error in basis_quality (not enough precision?)
-  # reduction with GSO
-  #bkz = BKZ2(GSO.Mat(A)) # ValueError: math domain error in basis_quality (not enough precision?)
-  #bkz = BKZ2(GSO.Mat(A, float_type="mpfr")) # AssertionError, fpylll.fplll.bkz_param.Strategy.get_pruning
-  #bkz = BKZ2(GSO.Mat(A, float_type="mpfr", flags=GSO.INT_GRAM))  # AssertionError, fpylll.fplll.bkz_param.Strategy.get_pruning
-  #bkz = BKZ2(GSO.Mat(A, flags=GSO.INT_GRAM)) # ValueError: math domain error math in basis_quality (not enough precision?)
-  #bkz = BKZ2(LLL.Reduction(GSO.Mat(A))) # ValueError: math domain error in basis_quality (not enough precision?)
-  #_ = bkz(param)
-  #print(f"{walltime()-t}")
-
-  #bkz = BKZ.Reduction(gso, lll_obj, param)
-
-  # This is slow
-  #t = walltime()
-  #lll_obj = LLL.Reduction(gso)
-  #bkz = BKZ.Reduction(gso, lll_obj, param)
-  #bkz()
-  #print(f"-> done in {walltime()-t} sec ... ")
-  gso.update_gso()
-  H = gso.B.to_matrix(matrix(ZZ, gso.B.nrows, gso.B.ncols))
-  M = gso.U.to_matrix(matrix(ZZ, gso.U.nrows, gso.U.ncols))
-  return H,M
-
 def shortening_matrix_BKZ(A, precision = "double", transformation = True):
   A = IntegerMatrix.from_matrix(A)
   M = IntegerMatrix.identity(A.nrows)
 
   gso = GSO.Mat(A, float_type=precision,
-						U=IntegerMatrix.identity(M.nrows, int_type=M.int_type),
-						UinvT=IntegerMatrix.identity(M.nrows, int_type=M.int_type))
+                U=IntegerMatrix.identity(M.nrows, int_type=M.int_type),
+                UinvT=IntegerMatrix.identity(M.nrows, int_type=M.int_type))
   gso.update_gso()
 
   bkz = BKZReduction(gso)
@@ -764,7 +692,7 @@ def relations_internal(d, file, seed, food=None):
 		#
     #compute quad relations and factorbase
 		#
-    RQ = quadrelations(d[0], tuple(P), aism, food=food)
+    RQ = quadrelations(d[0], tuple(P), aism, seed, food=food)
 		#
 		# now RQ contains clK (possibly 0), av (S-units in the form of pairs), L, zero_matrix(len(av), aism), v (list of relations)
 		# the below concatenates the triples (i-th unit vector, 0-vector, i-th relation vector) into one large list
@@ -809,7 +737,7 @@ def relations_internal(d, file, seed, food=None):
 	# which is described by (0,0,1,0...) relation vector. Such relation will be lifted to (0,0,1,1,0,..) relation
 	# Putting the non-zero indicies properly is what is done below
 	#
-	
+
   R1new = []
   for r1 in R1:
     currentp = 0
@@ -836,11 +764,11 @@ def relations_internal(d, file, seed, food=None):
     newv = []
     for i in range(len(FB2)):
       if currentp != FB2[i].prime: 
-            newv += [r2.factors[i]*j for j in FB2[i].powers]
-            currentp = FB2[i].prime
+        newv += [r2.factors[i]*j for j in FB2[i].powers]
+        currentp = FB2[i].prime
       else:
-         c2 = len(FB2[i].powers)
-         newv[-c2:] = [newv[-c2:][h] + r2.factors[i]*FB2[i].powers[h] for h in range(c2)]
+        c2 = len(FB2[i].powers)
+        newv[-c2:] = [newv[-c2:][h] + r2.factors[i]*FB2[i].powers[h] for h in range(c2)]
     R2new += [R(r2.powers, r2.conj, newv)]
 
   #lift field 3: the lifts are already conjugated in the loaded primes
@@ -850,35 +778,30 @@ def relations_internal(d, file, seed, food=None):
     newv = []
     for i in range(len(FB3)):
       if currentp != FB3[i].prime:
-            newv += [r3.factors[i]*j for j in FB3[i].powers]
-            currentp = FB3[i].prime
+        newv += [r3.factors[i]*j for j in FB3[i].powers]
+        currentp = FB3[i].prime
       else:
-         c = len(FB3[i].powers)
-         newv[-c:] = [newv[-c:][h] + r3.factors[i]*FB3[i].powers[h] for h in range(c)]
+        c = len(FB3[i].powers)
+        newv[-c:] = [newv[-c:][h] + r3.factors[i]*FB3[i].powers[h] for h in range(c)]
+    # The code below just swaps values of r3.powers[i] and r3.conj[i] if sigma[d[-1]][i] = -1 and leaves them as is otherwise.
     conjugate =  zip(*[(ZZ((1+c3)/2)*a - ZZ((-1+c3)/2)*b,
                         ZZ((1+c3)/2)*b - ZZ((-1+c3)/2)*a) for a,b,c3 in zip(r3.powers,r3.conj,sigmas[d[-1]])])
     conjugate = list(conjugate)
     R3new += [R(conjugate[0], conjugate[1], newv)]
 
-  #let's do a cheat check
-  #for i in range(len(R3new)):
-  #   #print "praying", r3.element
-  #   for i in range(len(r3.powers)):
-  #     if (r3.powers[i] != 0) or (r3.conj[i] != 0):
-  #       print r3.powers[i],r3.conj[i], ais[i]
-
-  #S: check relations
-  #for r3 in R3new:
-  #  for i in range(len(r3.powers)):
-  #    if not ((r3.powers[i] != 0) or (r3.conj[i] != 0) or ((r3.conj[i] == 0) and (r3.powers[i] == 0))):
-  #      print("[R3new check failed] ", r3.powers[i], r3.conj[i], ais[i])
-  #      assert False, 'R3new check failed'
+  # # check
+  # FB = clgp.get_FB(d, food=food)
+  # K_sage = field.field(d).sage(food)
+  # A,Ac = lift_ais(d, seed)
+  # for r3 in R3new:
+  #   su = r3.generator(A, Ac)
+  #   for i in range(len(r3.factors)):
+  #     I = K_sage.ideal([FB[i].prime, K_sage(FB[i].elts)])
+  #     assert su.valuation(I) == r3.factors[i], f"Wrong computation of R3new: {su.valuation(I)} != {r3.factors[i]}"
 
   #S = uniq(sorted(R1new + R2new + R3new))
   S = list(set(R1new + R2new + R3new))
-  #print('R1new.factors:', [Ri.factors for Ri in R1new])
-	#print('R2new.factors:', [Ri.factors for Ri in R2new])
-	#print('R3new.factors:', [Ri.factors for Ri in R3new])
+
   print("Preparing ais")
   sys.stdout.flush()
 	#
@@ -958,7 +881,7 @@ def relations_internal(d, file, seed, food=None):
       print(f"Saving relations for field {d}")
       if M == None:
         M = matrix(ZZ,[Ti.factors for Ti in T])
-      save_matrix(d, M)
+      sunits.save(d, T, A, Ac)
       print_norms(M)
 
     if COMPUTE_CLGP_FOR_SUBFIELDS:
@@ -1023,7 +946,7 @@ def relations_internal(d, file, seed, food=None):
 
     if STORE_RELATIONS:
       print(f"Saving relations for field {d}")
-      save_matrix(d, M_red)
+      sunits.save(d, T, A, Ac)
     print("Computing elementary divisors")
     el_divisors =  M_red.elementary_divisors()
     print(f'Class group: {el_divisors}')
@@ -1074,23 +997,23 @@ def get_cl_gens_optimized(d, T, food, genetors_explicit):
     K = NumberField(x^2 - d[0], names=gens[0])
     field_counter = 1
     for gen in gens[1:]:
-       L = K.extension(x^2 - d[field_counter], names = gen)
-       K = L
-       field_counter+=1
+      L = K.extension(x^2 - d[field_counter], names = gen)
+      K = L
+      field_counter+=1
     generators = []
     for j in range(V.ncols()):
-       if el_divisors[j]==1: continue
-       g = K.ideal(1)
-       for i in range(len(P_fin)):
-           pi = K.ideal([P_fin[i].prime, P_fin[i].elts])
-           pi_power = pi^(Vinv[j,i])
-           g = g*pi_power
-       generators.append(g)
+      if el_divisors[j]==1: continue
+      g = K.ideal(1)
+      for i in range(len(P_fin)):
+          pi = K.ideal([P_fin[i].prime, P_fin[i].elts])
+          pi_power = pi^(Vinv[j,i])
+          g = g*pi_power
+      generators.append(g)
   return generators
 
 def evaluatereal(f, d):
-   I = [1]
-   for di in d:
-     I += [di*i for i in I]
-   val = sum([f.numer.c[i]*sqrtapprox[I[i]] for i in range(len(I))])
-   return val/f.denom
+  I = [1]
+  for di in d:
+    I += [di*i for i in I]
+  val = sum([f.numer.c[i]*sqrtapprox[I[i]] for i in range(len(I))])
+  return val/f.denom

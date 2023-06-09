@@ -2,17 +2,50 @@ import field
 import relations
 import fb
 import verify
+import trees
+import sunits
 from memoized import memoized
 
 from fpylll import GSO, IntegerMatrix, LLL
 
 @memoized
-def get_FB(d, d_parent = (), food = None):
+def clgp(d, food=None, d_parent=()):
+  K = field.field(d)
+  _d_parent = d_parent
+
+  if food == None:
+    food = trees.get_food()
+
+  class CL:
+
+    @staticmethod
+    def relations_matrix():
+      return get_matrices(d)[0]
+
+    @staticmethod
+    def relations_matrix_SNF():
+      return get_matrices(d)
+
+    @staticmethod
+    def factor_base(d_parent=None, sage=False):
+      if d_parent == None:
+          d_parent = _d_parent
+      return get_FB(d, d_parent=d_parent, sage=sage, food=food)
+
+  return CL
+
+@memoized
+def get_FB(d, d_parent = (), food = None, sage = False):
+    if food == None:
+        food = trees.get_food()
+
     if tuple(d_parent) == ():
         file = relations.convert_letters(tuple(d), seed=1, food=food)
     else:
         file = relations.convert_letters(tuple(d_parent), seed=1, food=food)
     FB = fb.load_primes(tuple(d), file, food=food)
+    if sage:
+        FB = [FB[i].to_sage(food) for i in range(len(FB))]
     return FB
 
 # Converting prod_i P_i^e_i => prod_i g_i^e'_i.
@@ -41,12 +74,50 @@ def gens_to_primes(e_g, V_inv):
 
 # Matrix of relations with SNF decomposition
 @memoized
-def get_matrices(d):
+def get_matrices(d, store=True):
+    t = walltime()
+    print("[matrices|load:", end="", flush=True)
     M = relations.load_matrix(d)
-    #print("\n\nM:", M)
-    B,U,V=M.smith_form()
-    U_inv = U^-1
-    V_inv = V^-1
+    print(f"{walltime(t)} sec.,{M.nrows()}x{M.ncols()}|snf:", end="", flush=True)
+    t = walltime()
+    try:
+        B = relations.load_matrix(d, suffix="_snf_B")
+        U = relations.load_matrix(d, suffix="_snf_U")
+        V = relations.load_matrix(d, suffix="_snf_V")
+        print("loaded,", end="")
+    except:
+        B,U,V = M.smith_form()
+        print("computed,", end="")
+        if store:
+            relations.save_matrix(d, B, suffix="_snf_B")
+            relations.save_matrix(d, U, suffix="_snf_U")
+            relations.save_matrix(d, V, suffix="_snf_V")
+            print("stored,", end="")
+
+    print(f"{walltime(t)} sec.|inv_V:", end="", flush=True)
+    t = walltime()
+    try:
+        V_inv = relations.load_matrix(d, suffix="_snf_V_inv")
+        print("loaded,", end="")
+    except:
+        V_inv = V^-1
+        print("computed,", end="")
+        if store:
+            relations.save_matrix(d, V_inv, suffix="_snf_V_inv")
+            print("stored,", end="")
+    print(f"{walltime(t)} sec.|inv_U:", end="", flush=True)
+    t = walltime()
+    try:
+        U_inv = relations.load_matrix(d, suffix="_snf_U_inv")
+        print("loaded,", end="")
+    except:
+        U_inv = U^-1
+        print("computed,", end="")
+        if store:
+            relations.save_matrix(d, U_inv, suffix="_snf_U_inv")
+            print("stored,", end="")
+    
+    print(f"{walltime(t)} sec.]", end="", flush=True)
     return (M,B,U,V,U_inv,V_inv)
 
 def inverse(d, e_g):
@@ -63,12 +134,15 @@ def inverse(d, e_g):
         e_g = [ZZ(lift(Mod(-e_g[i], B[i+j,i+j]))) for i in range(len(e_g))]
     return e_g
 
-# Computes principal ideals g_i^b_i, where g_i are class group generators and b_i = #<g_i>.
-# Results are represented as ideals products of the form prod_i P_i^e_i.
 @memoized
 def get_gens_ids(d):
+    '''
+    Computes principal ideals g_i^b_i, where g_i are class group generators and b_i = #<g_i>.
+
+    Results are represented as ideals products of the form prod_i P_i^e_i where P_i are primes from the factor base.
+    '''
     M,B,U,V,U_inv,V_inv = get_matrices(d)
-    g = [0]*B.nrows()
+    g = [0]*B.ncols()
     for i in range(len(g)):
         if B[i,i] == 0 or B[i,i] == 1:
             g[0] = [0] * M.nrows()
@@ -76,30 +150,37 @@ def get_gens_ids(d):
         g[i] = [sum(M[j,k]*U[i,j] for j in range(M.nrows())) for k in range(M.ncols())]
     return g
 
-# Reduces exponents (modulo orders of class group generators) of an element g of class group
-# represented by vector e s.t. g = prod_i(g_i^e_i), where {g_i}_i are generators of class group. 
-# Returns pair (h, e') s.t. prod_i(g_i^e_i) = h prod_i(g_i^e'_i), where h is vector that represents
-# a principal ideal of the form prod_i(P_i^h_i). Here P_i are prime ideals in factor base.
 def reduce_exp(d, e_g):
+    '''
+    Reduces exponents (modulo orders of class group generators) of an element g of class group
+    represented by vector e s.t. g = prod_i(g_i^e_i), where {g_i}_i are generators of class group. 
+
+    Returns pair (h, e') s.t. prod_i(g_i^e_i) = h prod_i(g_i^e'_i), where h is vector that represents
+    a principal ideal of the form prod_i(P_i^h_i). Here P_i are prime ideals in factor base.
+    '''
     M,B,U,V,U_inv,V_inv = get_matrices(d)
     gens = get_gens_ids(d)
-    assert len(e_g) == B.nrows()
+    assert len(e_g) == B.ncols()
     res = [0] * len(e_g)
     h = vector(ZZ, M.ncols())
     for i in range(len(e_g)):
         if B[i,i] == 0 or B[i,i] == 1:
             res[i] = 0
             continue
-        a,b = divmod(e_g[i], B[i,i])
-        # e_g[i] = a*b_i + b
+        a,b = divmod(e_g[i], B[i,i]) # e_g[i] = a*b_i + b
         res[i] = b
         h += a * vector(gens[i])
     return (list(h), res)
 
-# Reduce exponent vector v using Nearest Plane algorithm
-def reduce_NP(d, v):
-    A = relations.load_matrix(d)
-    A = matrix([r for r in A.rows() if not r.is_zero()])
+def reduce_NP(d, v, A = None):
+    '''
+    Reducing exponent vector v using Nearest Plane algorithm and the relations matrix A.
+    If A is not given then the method loads precomputed data.
+    '''
+
+    if A == None:
+        A = relations.load_matrix(d)
+    #A = matrix([r for r in A.rows() if not r.is_zero()])
     A0 = IntegerMatrix.from_matrix(A)
     #A0 = LLL.reduction(A0)
     M = GSO.Mat(A0, float_type="mpfr")
@@ -107,6 +188,22 @@ def reduce_NP(d, v):
     w = M.babai(v)
     w = A0.multiply_left(w)
     return [ZZ(v[i]) - ZZ(w[i]) for i in range(len(v))]
+
+
+def approx_CVP(d, v, A = None):
+    '''
+    Finds an approximation to the closest vector to v in the Log-S-unit lattice using Nearest Plane algorithm.
+    If the matrix of relations is not given, loads it from precomputed data.
+    '''
+    if A == None:
+        A = relations.load_matrix(d)
+    #A = matrix([r for r in A.rows() if not r.is_zero()])
+    A0 = IntegerMatrix.from_matrix(A)
+    #A0 = LLL.reduction(A0)
+    M = GSO.Mat(A0, float_type="mpfr")
+    _ = M.update_gso()
+    w = M.babai(v)
+    return w
 
 # Computes generators of class group as explicit products of prime ideals.
 # Extreemly slow, for testing purposes only. 

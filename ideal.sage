@@ -18,11 +18,12 @@ def unitloginverse(d):
   M = matrix(QQ,[(1,)*N] + [u.approxlog for u in S])
   return 1/M
 
-def approxlog(d,g):
+def approxlog(d,g,prec=None):
   n = len(d)
   N = 2^n
 
-  prec = 2*units.logbits
+  if prec == None:
+    prec = 2*units.logbits
   while True:
     if min(d) > 0:
       K = RealIntervalField(prec)
@@ -50,8 +51,18 @@ def approxlog(d,g):
 
 @nprofile.profile
 def exponents_rounded(d,g,scale):
+#  v = approxlog(d,g)
+#  e = v * unitloginverse(d) / scale
+#  return [-ZZ(round(ej)) for ej in e[1:]]
+  N = 2^len(d)
   v = approxlog(d,g)
-  e = v * unitloginverse(d) / scale
+  if min(d) > 0:
+    e = v * unitloginverse(d) / scale
+  else:
+    S = units.generators_mod_torsion(d)
+    M = matrix(QQ,[(1,)*N] + [u.approxlog for u in S])
+    e = M.solve_left(v) / scale
+
   return [-ZZ(round(ej)) for ej in e[1:]]
 
 @nprofile.profile

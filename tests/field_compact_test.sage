@@ -6,6 +6,8 @@ sys.path.append(os.path.dirname(__file__) + "/../")
 import unittest
 import field
 import field_compact
+import units
+import random as rnd
 
 class TestFieldCompactMethods(unittest.TestCase): 
   
@@ -153,6 +155,35 @@ class TestFieldCompactMethods(unittest.TestCase):
       b_s = vector(GF(2), b.symbols2_log(0,r))
       ab_s = vector(GF(2), ab.symbols2_log(0,r))
       self.assertEqual(a_s + b_s, ab_s)
+    
+  def test_compactify(self):
+    for d in self.fields:
+      KC = field_compact.field_compact(d)
+      K = KC.base_field()
+      U = units.generators(d)
 
+      a = K.random()
+
+      # testing joining of equal elements
+      b = KC((a,a), (1,1))
+      b_c = b.compactify()
+      self.assertTrue(len(b_c.elements) == 1 and len(b_c.powers) == 1)
+      self.assertTrue(b_c.elements[0] == a)
+      self.assertTrue(b_c.powers[0] == 2)
+
+      # testing joining of elements that differ by a unit
+      u = prod(rnd.choices(U, k=3)).element
+      a = K.random()
+
+      b = KC([a,a*u], (1,1))
+      b_c = b.compactify(mod_units=True)
+      if len(b_c.elements) == 2:
+        # the case when reduction mod units failed
+        self.assertTrue(b_c.powers[0] == 2 or b_c.powers[1] == 2)
+        self.assertTrue(b_c.elements[0].absnorm() in [-1,1] or b_c.elements[1].absnorm() in [-1,1])
+      else:
+        self.assertTrue(b_c.powers[0] == 2)
+        self.assertEqual(abs(b_c.elements[0].absnorm()), abs(a.absnorm()))
+        
 if __name__ == '__main__':
   unittest.main()

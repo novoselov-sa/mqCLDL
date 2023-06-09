@@ -1,6 +1,14 @@
 import ring
 import char
 import polynomial_ring
+import ideal
+import fb
+import relations
+import units
+import sunits
+import clgp
+import field_compact
+import trees
 
 from memoized import memoized
 
@@ -14,6 +22,7 @@ def field_knownniceness(d,nice):
   else:
     multiplier = N * abs(prod(d))
   class K:
+    gens = d
     multiplieroverN = multiplier / N
     def __init__(f,*args):
       if len(args) == 2:
@@ -69,6 +78,11 @@ def field_knownniceness(d,nice):
         return f * K.from_ZZ(g)
       if g.__class__ != f.__class__: raise Exception('do not know how to compute %s * %s' % (f,g))
       return K(f.numer * g.numer,f.denom * g.denom)
+    def __truediv__(f,g):
+      #FIXME: slow, we use methods of Sage since we have only exact division.
+      f0 = f.to_sage(K.sage())
+      g0 = g.to_sage(K.sage())
+      return K.from_sage(f0/g0)
     def square(f):
       return K(f.numer.square(),f.denom^2)
     def sqrt(f):
@@ -88,6 +102,8 @@ def field_knownniceness(d,nice):
       return K1(h,f.denom^2)
     def absnorm(f):
       return f.numer.absnorm() / f.denom^N
+    def norm_size(f):
+      return abs(f.absnorm().numerator()) + abs(f.absnorm().denominator())
     def getd(f):
       return d
     def get_qs(f,low,high):
@@ -108,15 +124,93 @@ def field_knownniceness(d,nice):
       return tuple(0 if si == 1 else 1 for si in s)
     def valuation(f, P):
       return f.to_sage(K.sage()).valuation(P)
-
+    def approxlog(f, prec=None):
+      return ideal.approxlog(d, f, prec=prec)
+    def lognorm(f, p=2, prec=None):
+      if prec == None:
+        prec = units.logbits
+      R = RealField(prec)
+      v = vector(f.approxlog(prec=prec))
+      return R(v.norm(p=2))
     def __pow__(f, a):
       assert type(a) == Integer
-      #assert a >= 0, "Unimplemented for negative exponent"
       if a < 0:
-        return K.from_sage(1/f.to_sage(K.sage())) ^ abs(a)
+        return K.one() / f ^ abs(a)
       if a == 0:
         return K.one()
       return sage.arith.power.generic_power(f, a)
+
+    def reduce_mod_units(f, rollback=False):
+      r = ideal.shorten(d, f)
+      if rollback and r.bit_size() >= f.bit_size():
+        return f
+      #print(f"\n\nf = {f.to_sage(K.sage())} reduced to r = {r.to_sage(K.sage())}")
+      #print(f"-> f.bit_size() = {f.bit_size()} reduced to r.bit_size() = {r.bit_size()}")
+      #print(f"-> f.lognorm() = {f.lognorm()} reduced to r.lognorm() = {r.lognorm()}")
+      return r
+
+    def reduce_mod_sunits(f, SU, mod_units=True):
+      '''
+      Given element f of the field K returns pair (f/s, s) where s is an S-unit in power-product representation and ||Log_S(f/s)||_2 <= ||Log_S(f)||_2.
+      '''
+      A = SU.relations_matrix()
+      FB = SU.factor_base(sage=True)
+      FB0 = SU.factor_base(sage=False)
+
+      v = [f.valuation(FB[j]) for j in range(len(FB))]
+      if fb.is_smooth(f.absnorm(), FB0):
+        return (K.one(), SU.from_prime_prod(v).compute_roots(ideal_sqrt=mod_units))
+
+      w = clgp.approx_CVP(d, v)
+      assert len(w) == len(SU.gens())
+
+      wA = vector(w) * A
+
+      # reduction failed, resulting vector has larger norm
+      if RR((vector(v)-wA).norm()) >= RR(vector(v).norm()):
+        return (f, SU.one())
+
+      s = prod([SU.gens()[i]^w[i] for i in range(len(w))], SU.one()).compute_roots(ideal_sqrt=mod_units)
+
+      if mod_units:
+        s = s.reduce_mod_units(rollback=True)
+
+      KC = field_compact.field_compact(d)
+
+      #h,r,s = KC(f).rdiv(s, l=2, bits=True, log_sunits=True, FB = FB)
+      h,r,s = KC(f).rdiv(s, l=2, bits=True, mod_units=mod_units)
+
+      assert len(h.elements) == 1 and len(h.powers) == 1 and h.powers[0] == 1
+      h = h.elements[0]
+
+      if r != KC.one() and (not vector(r.powers).is_zero()):
+        print(f"[red_mod_sunits_incomplete({len(r.elements)})]")
+
+      return (h, s)
+
+    def mul_mod_sunits(f, g, SU, mod_units=True):
+      return (f*g).reduce_mod_sunits(SU, mod_units=mod_units)
+
+    def pow_mod_sunits(f, a, SU, mod_units=True):
+      assert type(a) == Integer
+      if a < 0:
+        #return (K.one() / f) ^ abs(a)
+        return (K.one() / f).pow_mod_sunits(abs(a), SU, mod_units=mod_units)
+      if a == 0:
+        return (K.one(), SU.one())
+      if a == 1:
+        #return (f, SU.one())
+        return f.reduce_mod_sunits(SU, mod_units=mod_units)
+      #g = f^(a // 2)
+      g,s = f.pow_mod_sunits(a // 2, SU, mod_units=mod_units)
+      #g *= g
+      g,s0 = g.mul_mod_sunits(g, SU, mod_units=mod_units)
+      s = s^2 * s0
+      if a & 1:
+        #g *= f
+        g,s0 = g.mul_mod_sunits(f, SU, mod_units=mod_units)
+        s *= s0
+      return (g,s)
 
     def apply_aut(f, mu):
       """
@@ -213,6 +307,8 @@ def field_knownniceness(d,nice):
         return M(g_numer, g.denom)
       else:
          raise Exception('unimplemented')
+    def bit_size(f):
+      return f.numer.bit_size() + RR(f.denom).abs().log(2).floor() + 1
 
     @staticmethod
     def abs_gen():
@@ -457,6 +553,9 @@ def mquad_idx(d): # Computes [O_K:Z[theta_K]] for K = Q(theta_K)
 
 @memoized
 def field_sage(d, food = None, names = "a"):
+  if food == None:
+    food = trees.get_food()
+
   if food != None:
     names = list(sorted(food.keys()))[:len(d)]
   K = NumberField([x^2 - d[i] for i in range(len(d))], names=names)

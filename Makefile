@@ -74,10 +74,13 @@ prime_decomp.so \
 trees.so \
 cryptosystem.so \
 verify.so \
+saturation.so \
 clgp.so \
-smooth_ideal_sqrt_cyc.so \
+ideal_sqrt_cyc.so \
 dlog_quad.so \
 field_compact.so \
+sunits.so \
+idealprod.so
 
 goodprimecheat.so: goodprimecheat.c
 	$(CC) -o goodprimecheat.so goodprimecheat.c
@@ -215,7 +218,7 @@ field.so: field.c
 	$(CC) -o field.so field.c
 
 field.c: field.pyx
-	$(CYTHON) field.pyx
+	$(CYTHON) -3 field.pyx
 
 field.pyx: field.sage.py
 	cp field.sage.py field.pyx
@@ -343,17 +346,29 @@ verify.pyx: verify.sage.py
 verify.sage.py: verify.sage
 	$(SAGE) -preparse verify.sage
 
-smooth_ideal_sqrt_cyc.so: smooth_ideal_sqrt_cyc.c
-	$(CC) -o smooth_ideal_sqrt_cyc.so smooth_ideal_sqrt_cyc.c
+saturation.so: saturation.c
+	$(CC) -o saturation.so saturation.c
 
-smooth_ideal_sqrt_cyc.c: smooth_ideal_sqrt_cyc.pyx
-	$(CYTHON) -3 smooth_ideal_sqrt_cyc.pyx
+saturation.c: saturation.pyx
+	$(CYTHON) -3 saturation.pyx
 
-smooth_ideal_sqrt_cyc.pyx: smooth_ideal_sqrt_cyc.sage.py
-	cp smooth_ideal_sqrt_cyc.sage.py smooth_ideal_sqrt_cyc.pyx
+saturation.pyx: saturation.sage.py
+	cp saturation.sage.py saturation.pyx
 
-smooth_ideal_sqrt_cyc.sage.py: smooth_ideal_sqrt_cyc.sage
-	$(SAGE) -preparse smooth_ideal_sqrt_cyc.sage
+saturation.sage.py: saturation.sage
+	$(SAGE) -preparse saturation.sage
+
+ideal_sqrt_cyc.so: ideal_sqrt_cyc.c
+	$(CC) -o ideal_sqrt_cyc.so ideal_sqrt_cyc.c
+
+ideal_sqrt_cyc.c: ideal_sqrt_cyc.pyx
+	$(CYTHON) -3 ideal_sqrt_cyc.pyx
+
+ideal_sqrt_cyc.pyx: ideal_sqrt_cyc.sage.py
+	cp ideal_sqrt_cyc.sage.py ideal_sqrt_cyc.pyx
+
+ideal_sqrt_cyc.sage.py: ideal_sqrt_cyc.sage
+	$(SAGE) -preparse ideal_sqrt_cyc.sage
 
 dlog_quad.so: dlog_quad.c
 	$(CC) -o dlog_quad.so dlog_quad.c
@@ -379,6 +394,30 @@ field_compact.pyx: field_compact.sage.py
 field_compact.sage.py: field_compact.sage
 	$(SAGE) -preparse field_compact.sage
 
+sunits.so: sunits.c
+	$(CC) -o sunits.so sunits.c
+
+sunits.c: sunits.pyx
+	$(CYTHON) -3 sunits.pyx
+
+sunits.pyx: sunits.sage.py
+	cp sunits.sage.py sunits.pyx
+
+sunits.sage.py: sunits.sage
+	$(SAGE) -preparse sunits.sage
+
+idealprod.so: idealprod.c
+	$(CC) -o idealprod.so idealprod.c
+
+idealprod.c: idealprod.pyx
+	$(CYTHON) -3 idealprod.pyx
+
+idealprod.pyx: idealprod.sage.py
+	cp idealprod.sage.py idealprod.pyx
+
+idealprod.sage.py: idealprod.sage
+	$(SAGE) -preparse idealprod.sage
+
 clean:
 	rm -f goodprimecheat.so goodprimecheat.c goodprimecheat.pyx
 	rm -f goodprime.so goodprime.c goodprime.pyx
@@ -402,10 +441,13 @@ clean:
 	rm -f ideal.so ideal.c ideal.pyx
 	rm -f clgp.so clgp.c clgp.pyx
 	rm -f cryptosystem.so cryptosystem.c cryptosystem.pyx
-	rm -f smooth_ideal_sqrt_cyc.so smooth_ideal_sqrt_cyc.c smooth_ideal_sqrt_cyc.pyx
+	rm -f ideal_sqrt_cyc.so ideal_sqrt_cyc.c ideal_sqrt_cyc.pyx
 	rm -f dlog_quad.so dlog_quad.c dlog_quad.pyx
 	rm -f field_compact.so field_compact.c field_compact.pyx
 	rm -f verify.so verify.c verify.pyx
+	rm -f saturation.so saturation.c saturation.pyx
+	rm -f sunits.so sunits.c sunits.pyx
+	rm -f idealprod.so idealprod.c idealprod.pyx
 	for f in in tests/*test_sage.py; do\
 		rm -f "$$f";\
 	done

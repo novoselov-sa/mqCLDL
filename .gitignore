@@ -9,8 +9,9 @@
 !centermod.pyx
 *.sublime-project
 *.sublime-workspace
-*_relations
+*_relations*
+*_dlog*
 *.christine
 trees/food.txt
 __pycache__
-*.log
+

@@ -38,7 +38,9 @@ def sage_prime(d, p, elt, name='a'):
 
 def load_primes(d, file, food = None):
   if food == None:
-    food = {"a": 5, "b": 13, "c": 17, "d": 29, "e": 37, "f": 41, "g": 53, "h": 61}
+    food = trees.get_food()
+    if food == None:
+      food = {"a": 5, "b": 13, "c": 17, "d": 29, "e": 37, "f": 41, "g": 53, "h": 61}
   foodinv = dict((k,v) for v,k in food.iteritems())
   P = factorsb(d)
   #print d
@@ -51,7 +53,7 @@ def load_primes(d, file, food = None):
   #  else:
   #    file += ''.join([foodinv[i] for i in zip(*list(d[0].factor()))[0]])
   #print file
-  f = open("trees/" + file + ".christine","r")
+  f = open("trees/" + file + ".christine", "r")
   myList = []
   printing = False
   iti = 0
@@ -192,29 +194,44 @@ def primes_right(p, d):
     print("d done:", d)
   return primes
 
-def factorsb(d):
+@memoized
+def factorsb(d, food=None):
   n = len(d)
   N = 2^n
   K = field.field(d)
+  if food == None:
+    food = trees.get_food()
   class P:
     def __init__(f,*args, **kwargs):
       f.names = kwargs.get("names") # names of variables in elts
 
-      if len(args) == 1: # list instead of seperates
+      if len(args) == 1: # list instead of separates
         c = args[0]
         [f.prime,f.elts,f.powers] = c
         return
       if len(args) == 3: # XXX: trusting caller to provide suitable values
         f.prime,f.elts,f.powers = args
         return
-      raise Exception('not known how to initialize units(%s)(%s)' % (str(d),args))
+      raise Exception('not known how to initialize fb.prime(%s)(%s)' % (str(d),args))
     def __repr__(f):
       return 'fb.prime(%s)(%s,%s,%s)' % (d,f.prime,f.elts,f.powers)
+    def __hash__(f):
+      return hash(tuple([f.prime, f.elts, tuple(f.powers)]))
     def to_sage(f, food = None):
-      if food == None:
-        food = trees.get_food()
       K_sage = K.sage(food)
       return K_sage.ideal(f.prime, K_sage(f.elts))
+    def __eq__(f,g):
+      #K_sage = K.sage(food)
+      if g.__class__ == P:
+        return f.to_sage(food) == g.to_sage(food)
+      else:
+        return f.to_sage() == g
+    def absolute_norm(f):
+      return f.to_sage(food).absolute_norm()
+    
+    @staticmethod
+    def get_food():
+      return food
   return P
 
 # Checks whether an integer b is smooth with respect to the factor base FB. 
@@ -223,7 +240,7 @@ def is_smooth(b, FB):
   for i in range(len(FB)):
     #if Mod(r, FB[i].prime) == 0:
     r = r / (QQ(FB[i].prime) ^ valuation(QQ(r), QQ(FB[i].prime)))
-    if r == 1:
+    if r == 1 or r == -1:
       return True
   return False
 

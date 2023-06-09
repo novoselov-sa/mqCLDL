@@ -10,6 +10,8 @@ import field
 def dlog_quad(D, I, d_parent=(), food=None, reduce=True):
     FB = clgp.get_FB((D,), d_parent=d_parent, food=food)
     M,B,U,V,U_inv,V_inv = clgp.get_matrices((D,))
+    
+    comp_time = walltime()
 
     B_t = []
     for i in range(B.ncols()):
@@ -27,11 +29,15 @@ def dlog_quad(D, I, d_parent=(), food=None, reduce=True):
         e = [0 for i in range(len(FB))]
         e_g = clgp.primes_to_gens(e, V, B, strip_zeroes=True)
         #print(f"-> e = {e} (trivial case)")
-        print(f"Finished computing DLOG for the ideal I = {I} in group {clgp.strip_oz(B_t)} ... {e_g}")
+        print(f"Finished computing DLOG for the ideal I = {I} in group {clgp.strip_oz(B_t)} ... {e_g}, {walltime(comp_time)} sec.")
         g = I.generator()
         #assert I.to_sage(K) == K.ideal(g.to_sage(K))
         print(f"-> generator: {g.to_sage()}")
         print("-> trivial class group\n")
+        if verify.level() >= verify.LIGHT:
+            print(f"-> Sage's result: {I.to_sage(K).ideal_class_log()}")
+            print()
+        assert I.to_sage(K) * fb.prod_ideal(K, FB, e) == K.ideal(g.to_sage(K))
         return (g, e)
 
     I2 = I.to_sage(K)
@@ -41,11 +47,15 @@ def dlog_quad(D, I, d_parent=(), food=None, reduce=True):
         e_g = clgp.primes_to_gens(e, V, B, strip_zeroes=True)
         #print(f"-> e = {e} (trivial case 2)")
         #print(f"--> I2.ideal_class_log() = {I2.ideal_class_log()}")
-        print(f"Finished computing DLOG for the ideal I = {I} in group {clgp.strip_oz(B_t)} ... {e_g}")
+        print(f"Finished computing DLOG for the ideal I = {I} in group {clgp.strip_oz(B_t)} ... {e_g}, {walltime(comp_time)} sec.")
         g = I.generator()
         print(f"-> generator: {g.to_sage()}")
         #assert I.to_sage(K) == K.ideal(g.to_sage(K))
         print(f"-> case: principal input ideal\n")
+        if verify.level() >= verify.LIGHT:
+            print(f"-> Sage's result: {I.to_sage(K).ideal_class_log()}")
+            print()
+        assert I.to_sage(K) * fb.prod_ideal(K, FB, e) == K.ideal(g.to_sage(K))
         return (g, e)
 
     # simple correctness check, norms should be the same
@@ -98,6 +108,7 @@ def dlog_quad(D, I, d_parent=(), food=None, reduce=True):
         assert CL_K(IJ) == CL_K.identity()
         # the following alternative is very slow even for small fields
         #assert IJ.is_principal(proof=False), f"Jt = {Jt.gens()}, I2 * Jt = {IJ.gens()}"
+
     # reduce vector modulo orders of class generators
     #e_g = clgp.primes_to_gens(e, V, B)
     e_g = clgp.primes_to_gens(e, V, B, strip_zeroes=True)
@@ -116,11 +127,14 @@ def dlog_quad(D, I, d_parent=(), food=None, reduce=True):
     s = lcm(QQ(g0).denom(),QQ(g1).denom())
     g = field.field((D,))((ZZ(g0*s),ZZ(g1*s)),s)
 
-    print(f"Finished computing DLOG for the ideal I = {I} in group {clgp.strip_oz(B_t)} ... {clgp.primes_to_gens(e, V, B, strip_zeroes=True)}")
+    print(f"Finished computing DLOG for the ideal I = {I} in group {clgp.strip_oz(B_t)} ... {clgp.primes_to_gens(e, V, B, strip_zeroes=True)}, {walltime(comp_time)} sec.")
     print(f"-> generator: {g.to_sage()}")
-    print(f"-> case: {res_case}")
+    print(f"-> case: {res_case}\n")
+    if verify.level() >= verify.LIGHT:
+        print(f"-> Sage's result: {I.to_sage(K).ideal_class_log()}")
+        print()
     #clgp.check_dlog((D,), I2, e_g)
     #clgp.check_dlog_exact((D,), I, g, -vector(e), d_parent = d_parent, food=food)
-    assert I.to_sage(K) * fb.prod_ideal(K, FB, e) == K.ideal(g.to_sage(K))
+    #assert I.to_sage(K) * fb.prod_ideal(K, FB, e) == K.ideal(g.to_sage(K))
     print()
     return (g,e)

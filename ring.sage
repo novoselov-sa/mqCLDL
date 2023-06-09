@@ -110,6 +110,8 @@ def ring_without_checking(d):
         J += [rng.gens()[i]*g for g in J]
       res = sum([f.c[i]*J[i] for i in range(len(J))])
       return res
+    def bit_size(f):
+      return sum([ZZ(RR(ci).abs().log(2).floor()+1) for ci in f.c if ci != 0])
 
     @staticmethod
     def random_element(bound = 10000):

@@ -75,7 +75,21 @@ def altfinal(Aq, Aqd, Aqc, Aqcd, qs, vec, vecc, denom):
        #assert mod(newq,q).is_square()
        newq = mod(newq, q).sqrt()
     chi += [ZZ(newq).jacobi(q)]
-  return tuple(chi) 
+  return tuple(chi)
+
+def altfinal2(Aq, Aqd, qs, vec, denom):
+  chi = []
+  for i in range(len(qs)):
+    denom0 = denom
+    q = qs[i]
+    k = GF(q)
+    newq = prod([ZZ(k((Aq[v][i]/Aqd[v]))).powermod(vec[v],q) for v in range(len(vec))]) % q
+    while denom0 > 1:
+      denom0 /= 2
+      #assert mod(newq,q).is_square()
+      newq = mod(newq, q).sqrt()
+    chi += [ZZ(newq).jacobi(q)]
+  return tuple(chi)
 
 def altsymbol(d, f, denom, t):
   n = len(d)

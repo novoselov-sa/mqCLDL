@@ -5,6 +5,8 @@ sys.path.append(os.path.dirname(__file__) + "/../")
 
 import unittest
 import field
+import units
+import random as rnd
 
 class TestFieldMethods(unittest.TestCase):
   def setUp(self):
@@ -12,7 +14,7 @@ class TestFieldMethods(unittest.TestCase):
       (5, 13),
       (-11, -31),
       (-3, -7, -11),
-      (-11, -31, -19),
+      (-11, -19, -31),
       (-7, -11, -19, -23),
       (-11, -19, -31, -47),
       (-3, 5*17),
@@ -98,6 +100,38 @@ class TestFieldMethods(unittest.TestCase):
       a1 = a0.to_sage(K.sage())
       a1 = K.from_sage(a1)
       self.assertEqual(a0, a1)
+  
+  def test_reduce_mod_units(self):
+    for d in self.fields:
+      K = field.field(d)
+      U = units.generators_mod_torsion(d)
+      u = prod(rnd.choices(U, k=3))
+
+      a0 = K.random()
+      a1 = a0 * u.element
+
+      a1_red = a1.reduce_mod_units()
+
+      I1 = K.sage().ideal(a1.to_sage(K.sage()))
+      I2 = K.sage().ideal(a1_red.to_sage(K.sage()))
+
+      self.assertEqual(I1, I2)
+  
+  def test_div(self):
+    for d in self.fields:
+      K = field.field(d)
+      a = K.random()
+      b = K.random()
+      c = a / b
+      self.assertEqual(a, c * b)
+
+  def test_approxlog(self):
+    for d in self.fields:
+      K = field.field(d)
+      a = K.random()
+      b = K.random()
+      c = a * b
+      self.assertLessEqual(vector(c.approxlog()).norm(), vector(a.approxlog()).norm() + vector(b.approxlog()).norm())
 
 if __name__ == '__main__':
   unittest.main()

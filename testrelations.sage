@@ -233,5 +233,6 @@ if args.shorten == "bkz" or args.shorten_final == 'bkz':
     relations.set_bkz_block_size(bs)
 
 trees.clear_dir("relations")
+print(pari.allocatemem(600*1024^3))
 testrelations(food, seed)
 #nprofile.output([goodprime,units,relations])
